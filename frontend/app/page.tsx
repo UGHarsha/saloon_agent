@@ -72,13 +72,22 @@ export default function Home() {
               <h1 className="text-4xl font-bold text-center">Royal Glow Salon</h1>
               <span className="text-3xl">✨</span>
             </div>
-            <Link
-              href="/bookings"
-              className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-all duration-300"
-              title="View all appointments"
-            >
-              📅
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/recolor"
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-3 py-2 rounded-lg transition-all duration-300 text-sm font-medium"
+                title="Try hair color change"
+              >
+                🎨 Color
+              </Link>
+              <Link
+                href="/bookings"
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-all duration-300"
+                title="View all appointments"
+              >
+                📅
+              </Link>
+            </div>
           </div>
           <p className="text-center text-pink-100 text-sm">Chat with Bella - Your Beauty Consultant</p>
         </div>          {/* Chat Container */}
