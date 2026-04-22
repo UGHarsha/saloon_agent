@@ -1,17 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "../../utils/supabase";
+import { User } from "@supabase/supabase-js";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    // Get the current session when the component loads
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    // Listen for any auth changes (login/logout)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
   return (
-    <nav 
+    <nav
       className="sticky top-0 z-50 border-b border-white/30"
       style={{
         backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -51,6 +74,22 @@ export default function Navbar() {
               Hair Recolor
               <span className="absolute bottom-0 left-0 w-0 h-px bg-white group-hover:w-full transition-all duration-300"></span>
             </Link>
+            
+            {user ? (
+              <button
+                onClick={handleLogout}
+                className="text-xs text-white font-medium hover:text-stone-200 drop-shadow-md uppercase tracking-[0.15em] transition-colors relative group border border-white/30 px-4 py-2 rounded-sm"
+              >
+                Logout
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="text-xs text-white font-medium hover:text-stone-200 drop-shadow-md uppercase tracking-[0.15em] transition-colors relative group border border-white/30 px-4 py-2 rounded-sm"
+              >
+                Login / Register
+              </Link>
+            )}
           </div>
 
           {/* CTA Button */}
