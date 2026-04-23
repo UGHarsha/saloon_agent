@@ -1,10 +1,22 @@
 "use client";
 import { useState, useEffect, FormEvent, KeyboardEvent } from "react";
 import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../utils/supabase";
 
 export default function Home() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [bookingView, setBookingView] = useState<"none" | "ai" | "manual">("none");
+  const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
+  const heroImages = ["/salon.jpg", "/2.jpg", "/3.jpg"];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentHeroSlide((prev) => (prev + 1) % heroImages.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [heroImages.length]);
 
   // Manual booking states
   const [manualForm, setManualForm] = useState({
@@ -19,6 +31,29 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [chatLog, setChatLog] = useState<{ role: string; text: string }[]>([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("book") === "true") {
+      const checkAuth = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setBookingView("manual");
+        } else {
+          router.push("/login");
+        }
+      };
+      checkAuth();
+    }
+  }, [searchParams, router]);
+
+  const handleBookingAction = async (view: "ai" | "manual") => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      router.push("/login");
+      return;
+    }
+    setBookingView(view);
+  };
 
   const handleManualSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -106,34 +141,54 @@ export default function Home() {
   // Close booking modal on Escape for convenience
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape") setBookingView("none");
+      if (e.key === "Escape") {
+        setBookingView("none");
+        if (searchParams.get("book") === "true") router.replace("/");
+      }
     };
     if (bookingView !== "none") window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [bookingView]);
+  }, [bookingView, searchParams, router]);
 
   return (
     <main className="min-h-screen bg-[#FDFBF7] font-sans text-[#3E2723]">
       
       {/* Booking Modal */}
-      {bookingView !== "none" && (
-        <div
-          className="fixed inset-0 z-40 bg-black/60 flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm animate-fadeIn"
-          onClick={() => setBookingView("none")}
-        >
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-4xl bg-white shadow-2xl flex flex-col h-[90vh] rounded-2xl overflow-hidden">
+        {bookingView !== "none" && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-white max-w-4xl w-full max-h-[90vh] overflow-y-auto flex flex-col shadow-2xl relative">
+              <button
+              onClick={() => {
+                setBookingView("none");
+                if (searchParams.get("book") === "true") router.replace("/");
+              }}
+              className="absolute top-4 right-4 z-10 p-2 text-stone-500 hover:text-stone-900 bg-white/50 hover:bg-white/80 backdrop-blur-md rounded-full transition-all"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="absolute top-4 left-4 z-10 md:hidden">
+              <button
+                onClick={() => {
+                  setBookingView("none");
+                  if (searchParams.get("book") === "true") router.replace("/");
+                }}
+                className="bg-white/50 backdrop-blur-md p-2 rounded-full text-stone-800"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
             {/* Header */}
             <div className="px-8 py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-100 bg-white shrink-0">
               <div>
                 <h1 className="text-2xl font-serif text-[#3E2723] tracking-wide">Book Your Visit</h1>
                 <p className="text-stone-500 text-xs mt-1 tracking-wide uppercase">Select an option below</p>
               </div>
-              <button
-                onClick={() => setBookingView("none")}
-                className="text-xs uppercase tracking-widest text-[#C69C6D] hover:text-[#3E2723] transition-colors self-start sm:self-auto border border-[#C69C6D] hover:border-[#3E2723] px-4 py-2 rounded-full"
-              >
-                Close
-              </button>
             </div>
 
             {/* Booking View Tabs */}
@@ -163,19 +218,24 @@ export default function Home() {
             {bookingView === "manual" && (
               <div className="flex-1 overflow-y-auto p-6 md:p-10">
                 {manualSuccess ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center animate-fadeIn">
+                  <div className="text-center py-12 flex flex-col items-center justify-center">
+                    <div className="text-[#C69C6D] mb-4">
+                      <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
                     <h2 className="text-2xl font-serif text-[#3E2723] mb-2">Booking Confirmed</h2>
-                    <p className="text-stone-500 text-sm max-w-sm mb-8">
-                      Your appointment has been successfully scheduled. We look forward to seeing you.
+                    <p className="text-stone-500 mb-8 max-w-sm mx-auto text-sm">
+                      We&apos;ve reserved your time. You&apos;ll receive a confirmation email shortly.
                     </p>
                     <button
                       onClick={() => {
-                        setManualSuccess(false);
                         setBookingView("none");
+                        if (searchParams.get("book") === "true") router.replace("/");
                       }}
-                      className="bg-[#C69C6D] text-white px-8 py-3 tracking-widest uppercase text-sm font-medium hover:bg-[#B38759] transition-colors"
+                      className="border border-[#C69C6D] text-[#C69C6D] hover:bg-[#C69C6D] hover:text-white px-8 py-3 tracking-widest uppercase text-xs transition-colors"
                     >
-                      Return Home
+                      Close
                     </button>
                   </div>
                 ) : (
@@ -309,14 +369,19 @@ export default function Home() {
       {/* Hero Section */}
       <section className="relative text-white py-32 md:py-48 flex items-center justify-center min-h-screen overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <Image
-            src="/salon.jpg"
-            alt="Luxury Salon Interior"
-            fill
-            priority
-            className="object-cover object-center"
-          />
-          <div className="absolute inset-0 bg-black/40 z-10" />
+          {heroImages.map((src, idx) => (
+            <Image
+              key={src}
+              src={src}
+              alt={`Luxury Salon Interior ${idx + 1}`}
+              fill
+              priority={idx === 0}
+              className={`object-cover object-center transition-opacity duration-1000 ${
+                idx === currentHeroSlide ? "opacity-100" : "opacity-0"
+              }`}
+            />
+          ))}
+          <div className="absolute inset-0 bg-black/40 z-10 transition-opacity duration-1000" />
         </div>
 
         <div className="relative z-10 max-w-5xl mx-auto text-center px-4">
@@ -329,13 +394,13 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
             <button
-              onClick={() => setBookingView("manual")}
+              onClick={() => handleBookingAction("manual")}
               className="bg-[#C69C6D] text-white px-8 py-4 tracking-[0.15em] uppercase text-sm font-medium hover:bg-[#B38759] transition-all duration-300 shadow-lg"
             >
               Book Appointment
             </button>
             <button
-              onClick={() => setBookingView("ai")}
+              onClick={() => handleBookingAction("ai")}
               className="text-white px-8 py-4 tracking-[0.15em] uppercase text-sm font-medium border border-white/50 backdrop-blur-sm bg-white/10 hover:bg-white/20 transition-all duration-300"
             >
               Consult AI
