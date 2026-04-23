@@ -275,7 +275,7 @@ export default function Home() {
                             : "bg-white border border-stone-200 text-stone-800 rounded-bl-none"
                         }`}
                       >
-                        <p className="text-sm leading-relaxed">{msg.text}</p>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
                       </div>
                     </div>
                   ))

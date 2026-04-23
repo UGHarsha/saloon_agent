@@ -176,19 +176,29 @@ function extractAppointmentDetails(message, history) {
   const details = {};
 
   if (lowerConversation.includes("haircut") || lowerConversation.includes("hair cut") || lowerConversation.includes("trim")) {
-    details.service = "Haircut";
-  } else if (
-    lowerConversation.includes("coloring") ||
-    lowerConversation.includes("hair color") ||
-    lowerConversation.includes("hair dye") ||
-    lowerConversation.includes("colour")
-  ) {
-    details.service = "Coloring";
+    details.service = "Haircut & Styling";
+  } else if (lowerConversation.includes("color") || lowerConversation.includes("colour") || lowerConversation.includes("highlight")) {
+    details.service = "Color & Highlights";
+  } else if (lowerConversation.includes("keratin")) {
+    details.service = "Keratin Treatment";
+  } else if (lowerConversation.includes("bridal") || lowerConversation.includes("wedding")) {
+    details.service = "Bridal Package";
+  } else if (lowerConversation.includes("consultation")) {
+    details.service = "Consultation";
   }
 
+  // Very basic extraction of "tomorrow", dates, and times
   const timeMatch = fullConversation.match(/(\d{1,2}):?(\d{2})?\s*(am|pm)?/i);
   if (timeMatch) {
     details.appointmentTime = timeMatch[0];
+  }
+  
+  if (lowerConversation.includes("tomorrow")) {
+    const tmrw = new Date();
+    tmrw.setDate(tmrw.getDate() + 1);
+    details.appointmentDate = tmrw.toISOString().split('T')[0];
+  } else {
+    details.appointmentDate = new Date().toISOString().split('T')[0];
   }
 
   const nameMatch = fullConversation.match(/(?:my name is|name is|name:\s*|i'm|i am|im|call me|this is)\s*([A-Za-z]+(?:\s+[A-Za-z]+){0,2})/i);
@@ -222,11 +232,11 @@ function buildFallbackChatReply({ shouldBook, appointmentDetails, bookingSaved, 
   }
 
   if (shouldBook && !appointmentDetails?.service) {
-    return "I can book that for you—would you like a Haircut or Coloring appointment?";
+    return "I can book that for you—would you like Haircut & Styling, Color & Highlights, Keratin Treatment, or a Bridal Package?";
   }
 
   if (!appointmentDetails?.service) {
-    return "Got it. Which service would you like to book: Haircut or Coloring?";
+    return "Got it. Which service would you like to book: Haircut & Styling, Color & Highlights, Keratin Treatment, or a Bridal Package?";
   }
 
   if (!appointmentDetails?.customerName) {
@@ -471,12 +481,33 @@ app.post('/api/chat', async (req, res) => {
 
     if (shouldBook && appointmentDetails.service) {
       try {
-        const today = new Date().toISOString().split('T')[0];
+        let dateTimeString = appointmentDetails.appointmentDate || new Date().toISOString().split('T')[0];
+        if (appointmentDetails.appointmentTime) {
+          try {
+            // Rough conversion from 2pm to 14:00:00
+            const strTime = appointmentDetails.appointmentTime.toLowerCase();
+            const timeMatch = strTime.match(/(\d{1,2}):?(\d{2})?\s*(am|pm)?/);
+            let hours = timeMatch ? parseInt(timeMatch[1]) : 12;
+            let mins = timeMatch && timeMatch[2] ? timeMatch[2] : '00';
+            let meridiem = timeMatch && timeMatch[3] ? timeMatch[3] : '';
+            
+            if (meridiem === 'pm' && hours < 12) hours += 12;
+            if (meridiem === 'am' && hours === 12) hours = 0;
+            
+            const hh = String(hours).padStart(2, '0');
+            const mm = String(mins).padStart(2, '0');
+            dateTimeString = `${dateTimeString}T${hh}:${mm}:00`;
+          } catch(e) {
+            dateTimeString = `${dateTimeString}T12:00:00`;
+          }
+        } else {
+            dateTimeString = `${dateTimeString}T12:00:00`;
+        }
 
         const bookingData = {
           customer_name: appointmentDetails.customerName || "Guest",
           service: appointmentDetails.service,
-          appointment_date: today,
+          appointment_date: new Date(dateTimeString).toISOString(),
         };
 
         console.log("Saving appointment to Supabase:", bookingData);
@@ -519,7 +550,19 @@ app.post('/api/chat', async (req, res) => {
             parts: [{ text: safeMessage }],
           },
         ]
-      : safeMessage;
+      : [{ role: "user", parts: [{ text: safeMessage }] }]; // Use array format consistently
+
+    if (shouldBook && bookingSaved) {
+       contents.push({
+           role: "user",
+           parts: [{ text: "SYSTEM MESSAGE: The booking was successfully saved to the database. Let the user know." }]
+       });
+    } else if (shouldBook && bookingError) {
+       contents.push({
+           role: "user",
+           parts: [{ text: `SYSTEM MESSAGE: The booking failed due to an error: ${bookingError}. Apologize to the user.` }]
+       });
+    }
 
     if (process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
       try {
@@ -527,7 +570,42 @@ app.post('/api/chat', async (req, res) => {
           model: "gemini-2.5-flash",
           contents: contents,
           config: {
-            systemInstruction: "You are Bella, the AI receptionist for Royal Glow Salon. Be friendly and professional. Prices: Haircut $30, Coloring $85. Help users book appointments. Remember what the customer has told you in this conversation and don't ask the same questions again. When they confirm their booking, summarize their appointment details clearly.",
+            systemInstruction: `You are Bella, the elite AI Receptionist and Expert Hair Consultant for Royal Glow Salon. You are a real, fully-capable salon agent.
+
+**YOUR TONE & FORMAT:**
+- Be highly empathetic, professional, and friendly.
+- Provide expert, accurate advice for hair problems.
+- NEVER write long walls of text. ALWAYS use short, scannable bullet points and brief sentences.
+
+**GREETING INSTRUCTIONS:**
+When a user greets you (e.g., "hi", "hello"), introduce yourself warmly and immediately outline EXACTLY how you can help them today using a clear bulleted list:
+- 📅 **Book an Appointment** (view our specific services below)
+- 💡 **Get Expert Hair Advice** (solutions for dryness, hair fall, damage)
+- 🎨 **Style & Color Recommendations**
+
+Directly below that, provide a short, attractive list of the services they can book with you right now:
+• Haircut & Styling ($50)
+• Color & Highlights ($120+)
+• Keratin Treatment ($200)
+• Bridal Package ($300)
+• Free Profile Consultation
+
+**SALON SERVICES & KNOWLEDGE BASE:**
+1. **Haircut & Styling** ($50, 1 hr): Precision cuts, trims, blowouts.
+2. **Color & Highlights** ($120+, 2-3 hrs): Balayage, root touch-ups, full dye, highlights.
+3. **Keratin Treatment** ($200, 2 hrs): Smoothing treatment for frizzy, unmanageable hair. Lasts 3-6 months.
+4. **Bridal Package** ($300, 4 hrs): Complete hair and makeup for the bride. 
+5. **Consultation** (Free, 30 mins): In-depth hair analysis.
+
+**HANDLING HAIR PROBLEMS (EXPERT ADVICE):**
+- **Dry/Damaged/Frizzy Hair:** Recommend hydrating masks, less heat styling, and our 'Keratin Treatment'.
+- **Hair Fall/Thinning:** Recommend gentle scalp care, avoiding tight styles, and booking a 'Consultation'.
+- **Color Fade/Brassy Hair:** Recommend color-safe sulfate-free shampoos and booking 'Color & Highlights' for a gloss/toner.
+- Always provide 2-3 bullet points of actionable home-care advice AND suggest the most relevant salon service.
+
+**BOOKING FLOW:**
+- If they want to book, gently ask for: 1) Name, 2) Service, 3) Date, 4) Time.
+- Once they provide details and say "book", "yes", or "confirm", summarize and confirm it in one sentence.`,
           },
         });
 
