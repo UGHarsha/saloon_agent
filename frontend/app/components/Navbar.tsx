@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { supabase } from "../../utils/supabase";
 import { User } from "@supabase/supabase-js";
 import { Menu, X, Scissors } from "lucide-react";
@@ -11,6 +12,7 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -45,10 +47,12 @@ export default function Navbar() {
     { name: "Virtual Try-On", href: "/recolor" },
   ];
 
+  const isSolid = scrolled || pathname !== "/";
+
   return (
     <nav
       className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-        scrolled 
+        isSolid 
           ? "bg-white/80 backdrop-blur-md border-b border-stone-200 py-3 shadow-sm" 
           : "bg-transparent py-5"
       }`}
@@ -57,8 +61,8 @@ export default function Navbar() {
         <div className="flex justify-between items-center">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2 group z-50">
-            <Scissors className={`w-6 h-6 transition-colors ${scrolled ? "text-stone-900" : "text-white"}`} />
-            <span className={`font-serif tracking-widest text-xl transition-colors ${scrolled ? "text-stone-900" : "text-white"}`}>
+            <Scissors className={`w-6 h-6 transition-colors ${isSolid ? "text-stone-900" : "text-white"}`} />
+            <span className={`font-serif tracking-widest text-xl transition-colors ${isSolid ? "text-stone-900" : "text-white"}`}>
               ROYAL GLOW
             </span>
           </Link>
@@ -69,13 +73,13 @@ export default function Navbar() {
               <Link
                 key={link.name}
                 href={link.href}
-                className={`text-sm font-medium uppercase tracking-[0.1em] transition-colors relative group ${
-                  scrolled ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
+                className={`text-sm font-medium uppercase tracking-widest transition-colors relative group ${
+                  isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
                 }`}
               >
                 {link.name}
-                <span className={`absolute -bottom-1 left-0 w-0 h-[1px] transition-all duration-300 group-hover:w-full ${
-                  scrolled ? "bg-stone-900" : "bg-white"
+                <span className={`absolute -bottom-1 left-0 w-0 h-px transition-all duration-300 group-hover:w-full ${
+                  isSolid ? "bg-stone-900" : "bg-white"
                 }`}></span>
               </Link>
             ))}
@@ -85,8 +89,8 @@ export default function Navbar() {
             {user ? (
               <button
                 onClick={handleLogout}
-                className={`text-sm font-medium uppercase tracking-[0.1em] transition-colors ${
-                  scrolled ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
+                className={`text-sm font-medium uppercase tracking-widest transition-colors ${
+                  isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
                 }`}
               >
                 Logout
@@ -94,8 +98,8 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/login"
-                className={`text-sm font-medium uppercase tracking-[0.1em] transition-colors ${
-                  scrolled ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
+                className={`text-sm font-medium uppercase tracking-widest transition-colors ${
+                  isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
                 }`}
               >
                 Sign In
@@ -105,7 +109,7 @@ export default function Navbar() {
             <Link
               href="/bookings"
               className={`text-xs font-semibold uppercase tracking-widest px-6 py-3 transition-all ${
-                scrolled 
+                isSolid 
                   ? "bg-stone-900 text-white hover:bg-stone-800" 
                   : "bg-white text-stone-900 hover:bg-white/90"
               }`}
@@ -118,7 +122,7 @@ export default function Navbar() {
           <div className="md:hidden z-50 flex items-center">
             <button
               onClick={toggleMenu}
-              className={`p-2 transition-colors ${scrolled || isOpen ? "text-stone-900" : "text-white"}`}
+              className={`p-2 transition-colors ${isSolid || isOpen ? "text-stone-900" : "text-white"}`}
             >
               {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>

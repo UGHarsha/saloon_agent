@@ -1,8 +1,6 @@
 "use client";
-import { useState } from "react";
-import Link from "next/link";
+import { useState, useEffect } from "react";
 import Image from "next/image";
-import { supabase } from "../utils/supabase";
 
 export default function Home() {
   const [bookingView, setBookingView] = useState("none");
@@ -10,9 +8,7 @@ export default function Home() {
   const [manualLoading, setManualLoading] = useState(false);
   const [manualSuccess, setManualSuccess] = useState(false);
 
-  const [input, setInput] = useState("");
-  const [chatLog, setChatLog] = useState<{ role: string; text: string }[]>([]);
-  const [loading, setLoading] = useState(false);
+  
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,35 +19,27 @@ export default function Home() {
     }, 1500);
   };
 
-  const sendMessage = async () => {
-    if (!input.trim()) return;
-    setChatLog((prev) => [...prev, { role: "user", text: input }]);
-    setInput("");
-    setLoading(true);
+  
 
-    setTimeout(() => {
-      setChatLog((prev) => [
-        ...prev,
-        { role: "bella", text: "I can help with that! Let me check the schedule." }
-      ]);
-      setLoading(false);
-    }, 1500);
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
+  // Close booking modal on Escape for convenience
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setBookingView("none");
+    };
+    if (bookingView !== "none") window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [bookingView]);
 
   return (
     <main className="min-h-screen bg-[#FDFBF7] font-sans text-[#3E2723]">
       
       {/* Booking Modal */}
       {bookingView !== "none" && (
-        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-4xl bg-white shadow-2xl flex flex-col h-[90vh] rounded-2xl overflow-hidden">
+        <div
+          className="fixed inset-0 z-40 bg-black/60 flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm animate-fadeIn"
+          onClick={() => setBookingView("none")}
+        >
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-4xl bg-white shadow-2xl flex flex-col h-[90vh] rounded-2xl overflow-hidden">
             {/* Header */}
             <div className="px-8 py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-100 bg-white shrink-0">
               <div>
