@@ -74,36 +74,40 @@ export default function Recolor() {
   ];
 
   return (
-    <main className="min-h-screen bg-stone-50 font-sans pt-32 pb-16 px-6">
+    <main className="min-h-screen bg-[#FDFBF7] font-sans pt-32 pb-16 px-6 text-[#3E2723]">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
-          <p className="text-stone-500 tracking-[0.2em] uppercase text-xs mb-4">Virtual Salon</p>
-          <h1 className="text-4xl md:text-5xl font-serif text-stone-900 mb-6">Hair Color Studio</h1>
+          <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">Virtual Salon</p>
+          <h1 className="text-4xl md:text-5xl font-serif text-[#3E2723] mb-6">Hair Color Studio</h1>
           <div className="w-16 h-px bg-stone-300 mx-auto"></div>
         </div>
 
-        <div className="bg-white p-8 md:p-12 mb-16 border border-stone-100 shadow-sm max-w-3xl mx-auto">
+        <div className="bg-white p-8 md:p-12 mb-16 border border-stone-100 shadow-sm max-w-3xl mx-auto relative group">
+          <div className="absolute top-0 left-0 w-full h-1 bg-[#C69C6D] opacity-0 group-hover:opacity-100 transition-opacity"></div>
           <form onSubmit={handleSubmit} className="space-y-10">
             <div>
-              <label className="block text-xs uppercase tracking-[0.15em] text-stone-500 mb-4">
+              <label className="block text-xs uppercase tracking-[0.15em] text-stone-500 mb-4 font-semibold">
                 Upload your photo
               </label>
-              <div className="border border-stone-200 border-dashed p-6 text-center bg-stone-50 hover:bg-stone-100 transition-colors cursor-pointer relative">
+              <div className="border border-stone-200 border-dashed p-8 text-center bg-stone-50 hover:bg-white hover:border-[#C69C6D] transition-all cursor-pointer relative">
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
-                <span className="text-stone-600 text-sm font-light">
-                  {file ? file.name : "Click or drag an image here"}
+                <span className="text-[#3E2723] font-serif text-lg block mb-2">
+                  {file ? file.name : "Select an Image"}
+                </span>
+                <span className="text-stone-400 text-xs tracking-widest uppercase">
+                  {file ? "Change Image" : "Drag and drop or click to upload"}
                 </span>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs uppercase tracking-[0.15em] text-stone-500 mb-4">
+              <label className="block text-xs uppercase tracking-[0.15em] text-stone-500 mb-4 font-semibold">
                 Select a Natural Hair Color
               </label>
               <div className="grid grid-cols-3 md:grid-cols-5 gap-4 mb-8">
@@ -116,21 +120,21 @@ export default function Recolor() {
                       setColorName(c.name);
                     }}
                     className={`flex flex-col items-center gap-3 p-4 border transition-all duration-300 ${
-                      color === c.val ? "border-stone-900 bg-stone-50" : "border-stone-200 bg-white hover:border-stone-400"
+                      color === c.val ? "border-[#C69C6D] bg-[#FDFBF7] shadow-sm" : "border-stone-200 bg-white hover:border-[#C69C6D]"
                     }`}
                   >
                     <div
                       className={`w-12 h-12 rounded-full shadow-inner border border-stone-200`}
                       style={{ backgroundColor: `#${c.hex}` }}
                     />
-                    <span className="text-xs text-center text-stone-600 uppercase tracking-wider">
+                    <span className={`text-[10px] text-center uppercase tracking-wider ${color === c.val ? "text-[#3E2723] font-bold" : "text-stone-500"}`}>
                       {c.name}
                     </span>
                   </button>
                 ))}
               </div>
 
-              <label className="block text-xs uppercase tracking-[0.15em] text-stone-500 mb-2">
+              <label className="block text-xs uppercase tracking-[0.15em] text-stone-500 mb-2 font-semibold">
                 Or type a custom color
               </label>
               <input
@@ -141,9 +145,9 @@ export default function Recolor() {
                   setColorName("Custom");
                 }}
                 placeholder="e.g., blonde, 8D3127, chestnut"
-                className="w-full border-b border-stone-300 focus:border-stone-900 focus:outline-none px-0 py-3 bg-transparent text-stone-900 placeholder-stone-400 text-sm transition-colors"
+                className="w-full border-b border-stone-300 focus:border-[#C69C6D] focus:outline-none px-0 py-3 bg-transparent text-[#3E2723] placeholder-stone-400 text-sm transition-colors font-serif"
               />
-              <p className="text-xs text-stone-500 mt-3 font-light">
+              <p className="text-xs text-stone-400 mt-3 font-light tracking-wide">
                 Tip: output is auto-balanced to natural salon-like tones.
               </p>
             </div>
@@ -151,14 +155,14 @@ export default function Recolor() {
             <button
               type="submit"
               disabled={loading || !file}
-              className="w-full bg-stone-900 text-white px-8 py-4 tracking-[0.15em] uppercase text-sm font-medium hover:bg-stone-800 disabled:bg-stone-300 disabled:text-stone-500 disabled:cursor-not-allowed transition-all duration-300 shadow-sm"
+              className="w-full bg-[#C69C6D] text-white px-8 py-4 tracking-[0.15em] uppercase text-sm font-medium hover:bg-[#B38759] disabled:bg-stone-200 disabled:text-stone-400 disabled:cursor-not-allowed transition-all duration-300 shadow-sm"
             >
               {loading ? "Processing..." : "Generate Magic"}
             </button>
           </form>
 
           {error && (
-            <div className="mt-6 p-4 bg-red-50 text-red-700 text-sm border border-red-100 text-center">
+            <div className="mt-8 p-4 bg-red-50 text-red-700 text-xs tracking-widest uppercase border border-red-100 text-center font-semibold">
               {error}
             </div>
           )}
@@ -166,9 +170,9 @@ export default function Recolor() {
 
         {result && (
           <div className="grid md:grid-cols-2 gap-10 animate-fadeIn max-w-4xl mx-auto">
-            <div className="bg-white p-6 shadow-sm border border-stone-100">
-              <h3 className="text-lg font-serif text-stone-900 mb-6 text-center">Original Photo</h3>
-              <div className="relative aspect-square overflow-hidden bg-stone-100">
+            <div className="bg-white p-8 shadow-sm border border-stone-100">
+              <h3 className="text-xl font-serif text-[#3E2723] mb-6 text-center">Original Photo</h3>
+              <div className="relative aspect-square overflow-hidden bg-stone-50 border border-stone-200/50">
                 <img
                   src={result.originalUrl}
                   alt="Original"
@@ -177,14 +181,14 @@ export default function Recolor() {
               </div>
             </div>
             
-            <div className="bg-white p-6 shadow-sm border border-stone-100">
-              <h3 className="text-lg font-serif text-stone-900 mb-2 text-center">New Hair Color ({colorName})</h3>
+            <div className="bg-white p-8 shadow-sm border border-stone-100">
+              <h3 className="text-xl font-serif text-[#3E2723] mb-2 text-center">New Tone: {colorName}</h3>
               {result.appliedColor && (
-                <p className="text-center text-xs tracking-widest uppercase text-stone-500 mb-4">
-                  Tone: #{result.appliedColor}
+                <p className="text-center text-[10px] tracking-widest uppercase text-[#C69C6D] mb-4 font-bold">
+                  Color Match: #{result.appliedColor}
                 </p>
               )}
-              <div className="relative aspect-square overflow-hidden bg-stone-100">
+              <div className="relative aspect-square overflow-hidden bg-stone-50 border border-stone-200/50">
                 <img
                   src={result.recoloredUrl}
                   alt="Recolored"

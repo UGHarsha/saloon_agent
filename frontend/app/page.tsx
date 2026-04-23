@@ -1,29 +1,111 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, FormEvent, KeyboardEvent } from "react";
 import Image from "next/image";
+import { supabase } from "../utils/supabase";
 
 export default function Home() {
-  const [bookingView, setBookingView] = useState("none");
-  const [manualForm, setManualForm] = useState({ name: "", service: "Haircut & Styling", date: "", time: "10:00 AM" });
+  const [bookingView, setBookingView] = useState<"none" | "ai" | "manual">("none");
+
+  // Manual booking states
+  const [manualForm, setManualForm] = useState({
+    name: "",
+    service: "Haircut & Styling",
+    date: "",
+    time: "10:00 AM",
+  });
   const [manualLoading, setManualLoading] = useState(false);
   const [manualSuccess, setManualSuccess] = useState(false);
 
-  
+  const [input, setInput] = useState("");
+  const [chatLog, setChatLog] = useState<{ role: string; text: string }[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleManualSubmit = async (e: React.FormEvent) => {
+  const handleManualSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setManualLoading(true);
-    setTimeout(() => {
-      setManualLoading(false);
+    setManualSuccess(false);
+
+    // Combine date and time
+    const dateTimeString = `${manualForm.date}T${
+      manualForm.time === "10:00 AM" ? "10:00:00" :
+      manualForm.time === "1:00 PM" ? "13:00:00" :
+      manualForm.time === "3:00 PM" ? "15:00:00" : "12:00:00"
+    }`;
+
+    try {
+      const { error } = await supabase.from("bookings").insert([
+        {
+          customer_name: manualForm.name,
+          service: manualForm.service,
+          appointment_date: new Date(dateTimeString).toISOString(),
+        },
+      ]);
+      if (error) throw error;
       setManualSuccess(true);
-    }, 1500);
+      setManualForm({ ...manualForm, name: "" }); // Reset some fields
+    } catch (error) {
+      console.error("Booking error:", error);
+      alert("Failed to book appointment. Please try again.");
+    } finally {
+      setManualLoading(false);
+    }
   };
 
-  
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+
+    const userMsg = { role: "user", text: input };
+    setChatLog([...chatLog, userMsg]);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const response = await fetch("http://localhost:5000/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: input,
+          history: chatLog,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        const serverMsg = (errorData.error || "Failed to get response").replace(/^Error:\s*/i, "");
+        setChatLog((prev) => [...prev, { role: "bella", text: serverMsg }]);
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.text) {
+        setChatLog((prev) => [...prev, { role: "bella", text: data.text }]);
+      } else if (data.error) {
+        setChatLog((prev) => [...prev, { role: "bella", text: data.error }]);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      setChatLog((prev) => [...prev, {
+        role: "bella",
+        text: "Sorry, I encountered an error. Please make sure your API key is configured."
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
 
   // Close booking modal on Escape for convenience
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape") setBookingView("none");
     };
     if (bookingView !== "none") window.addEventListener("keydown", onKey);
@@ -110,8 +192,26 @@ export default function Home() {
                         <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Service</label>
                         <select value={manualForm.service} onChange={(e) => setManualForm({...manualForm, service: e.target.value})} className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif appearance-none">
                           <option>Haircut & Styling</option>
-                          <option>Coloring</option>
+                          <option>Color & Highlights</option>
+                          <option>Keratin Treatment</option>
+                          <option>Bridal Package</option>
+                          <option>Consultation</option>
                         </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Date</label>
+                          <input type="date" required value={manualForm.date} onChange={(e) => setManualForm({...manualForm, date: e.target.value})} className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif"/>
+                        </div>
+                        <div>
+                          <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Time</label>
+                          <select value={manualForm.time} onChange={(e) => setManualForm({...manualForm, time: e.target.value})} className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif appearance-none">
+                            <option>10:00 AM</option>
+                            <option>1:00 PM</option>
+                            <option>3:00 PM</option>
+                          </select>
+                        </div>
                       </div>
 
                       <button type="submit" disabled={manualLoading} className="w-full bg-[#C69C6D] text-white py-4 mt-8 uppercase tracking-widest text-sm font-semibold hover:bg-[#B38759] transition-colors disabled:opacity-50">
@@ -125,7 +225,80 @@ export default function Home() {
             
             {bookingView === "ai" && (
               <div className="flex-1 flex flex-col h-full bg-stone-50 relative">
-                <div className="flex-1 p-6">AI Assistant Coming Soon...</div>
+                <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] pointer-events-none mix-blend-overlay"></div>
+                
+                {/* Chat Container */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-transparent z-10 w-full">
+                  {chatLog.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center animate-fadeIn">
+                      <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-6 shadow-sm border border-stone-100">
+                        <span className="text-2xl">✨</span>
+                      </div>
+                      <h2 className="text-xl font-serif text-[#3E2723] mb-2">Your AI Assistant</h2>
+                      <p className="text-stone-500 text-sm max-w-sm leading-relaxed">
+                        I can help you schedule your appointment or answer questions. Try asking: &quot;Book a haircut for tomorrow at 2pm.&quot;
+                      </p>
+                    </div>
+                  ) : (
+                    chatLog.map((msg, i) => (
+                      <div
+                        key={i}
+                        className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-fadeIn`}
+                      >
+                        <div
+                          className={`max-w-[85%] px-5 py-4 rounded-2xl transition-all duration-300 shadow-sm ${
+                            msg.role === "user"
+                              ? "bg-[#C69C6D] text-white rounded-br-sm"
+                              : "bg-white border border-stone-200 text-[#3E2723] rounded-bl-sm"
+                          }`}
+                        >
+                          {msg.role === "bella" && (
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-[10px] uppercase tracking-widest text-[#C69C6D] font-semibold">Bella</span>
+                            </div>
+                          )}
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  {loading && (
+                    <div className="flex justify-start animate-fadeIn">
+                      <div className="bg-white border border-stone-200 text-stone-800 px-5 py-4 rounded-2xl rounded-bl-sm shadow-sm">
+                        <div className="flex gap-1.5 items-center h-5">
+                          <div className="w-2 h-2 bg-stone-300 rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-stone-300 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                          <div className="w-2 h-2 bg-stone-300 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Input Area */}
+                <div className="p-4 md:p-6 bg-white border-t border-stone-100 z-10 w-full shrink-0">
+                  <div className="flex items-center gap-3 bg-stone-50 p-2 rounded-full border border-stone-200 focus-within:border-[#C69C6D] focus-within:ring-1 focus-within:ring-[#C69C6D] transition-all max-w-4xl mx-auto">
+                    <input
+                      className="flex-1 bg-transparent border-none focus:outline-none px-4 py-2 text-stone-800 placeholder-stone-400 text-sm"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={handleKeyPress}
+                      placeholder="Message the AI agent..."
+                      disabled={loading}
+                    />
+                    <button
+                      onClick={sendMessage}
+                      disabled={loading || !input.trim()}
+                      className="bg-[#C69C6D] disabled:bg-stone-300 text-white rounded-full p-2.5 transition-colors"
+                      aria-label="Send message"
+                    >
+                      <svg className="w-5 h-5 translate-x-px translate-y-px" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
               </div>
             )}
 
