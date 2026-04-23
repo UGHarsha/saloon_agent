@@ -4,159 +4,179 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { supabase } from "../../utils/supabase";
 import { User } from "@supabase/supabase-js";
+import { Menu, X, Scissors } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    // Get the current session when the component loads
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
 
-    // Listen for any auth changes (login/logout)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
 
-    return () => subscription.unsubscribe();
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
-  const toggleMenu = () => {
-    setIsOpen(!isOpen);
-  };
+  const toggleMenu = () => setIsOpen(!isOpen);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
 
+  const navLinks = [
+    { name: "Home", href: "/" },
+    { name: "Services", href: "/#services" },
+    { name: "Bookings", href: "/bookings" },
+    { name: "Virtual Try-On", href: "/recolor" },
+  ];
+
   return (
     <nav
-      className="sticky top-0 z-50 border-b border-white/30"
-      style={{
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-      }}
+      className={`fixed top-0 w-full z-50 transition-all duration-300 ${
+        scrolled 
+          ? "bg-white/80 backdrop-blur-md border-b border-stone-200 py-3 shadow-sm" 
+          : "bg-transparent py-5"
+      }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2 group">
-            <span className="text-white font-serif tracking-widest text-xl drop-shadow-md hover:text-stone-200 transition-colors">
+          <Link href="/" className="flex items-center space-x-2 group z-50">
+            <Scissors className={`w-6 h-6 transition-colors ${scrolled ? "text-stone-900" : "text-white"}`} />
+            <span className={`font-serif tracking-widest text-xl transition-colors ${scrolled ? "text-stone-900" : "text-white"}`}>
               ROYAL GLOW
             </span>
           </Link>
 
-          {/* Desktop Navigation Links */}
+          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link
-              href="/"
-              className="text-xs text-white font-medium hover:text-stone-200 drop-shadow-md uppercase tracking-[0.15em] transition-colors relative group"
-            >
-              Home
-              <span className="absolute bottom-0 left-0 w-0 h-px bg-white group-hover:w-full transition-all duration-300"></span>
-            </Link>
-            <Link
-              href="/bookings"
-              className="text-xs text-white font-medium hover:text-stone-200 drop-shadow-md uppercase tracking-[0.15em] transition-colors relative group"
-            >
-              Bookings
-              <span className="absolute bottom-0 left-0 w-0 h-px bg-white group-hover:w-full transition-all duration-300"></span>
-            </Link>
-            <Link
-              href="/recolor"
-              className="text-xs text-white font-medium hover:text-stone-200 drop-shadow-md uppercase tracking-[0.15em] transition-colors relative group"
-            >
-              Hair Recolor
-              <span className="absolute bottom-0 left-0 w-0 h-px bg-white group-hover:w-full transition-all duration-300"></span>
-            </Link>
+            {navLinks.map((link) => (
+              <Link
+                key={link.name}
+                href={link.href}
+                className={`text-sm font-medium uppercase tracking-[0.1em] transition-colors relative group ${
+                  scrolled ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
+                }`}
+              >
+                {link.name}
+                <span className={`absolute -bottom-1 left-0 w-0 h-[1px] transition-all duration-300 group-hover:w-full ${
+                  scrolled ? "bg-stone-900" : "bg-white"
+                }`}></span>
+              </Link>
+            ))}
+            
+            <div className="h-4 w-px bg-stone-300/50 mx-4"></div>
             
             {user ? (
               <button
                 onClick={handleLogout}
-                className="text-xs text-white font-medium hover:text-stone-200 drop-shadow-md uppercase tracking-[0.15em] transition-colors relative group border border-white/30 px-4 py-2 rounded-sm"
+                className={`text-sm font-medium uppercase tracking-[0.1em] transition-colors ${
+                  scrolled ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
+                }`}
               >
                 Logout
               </button>
             ) : (
               <Link
                 href="/login"
-                className="text-xs text-white font-medium hover:text-stone-200 drop-shadow-md uppercase tracking-[0.15em] transition-colors relative group border border-white/30 px-4 py-2 rounded-sm"
+                className={`text-sm font-medium uppercase tracking-[0.1em] transition-colors ${
+                  scrolled ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
+                }`}
               >
-                Login / Register
+                Sign In
               </Link>
             )}
+            
+            <Link
+              href="/bookings"
+              className={`text-xs font-semibold uppercase tracking-widest px-6 py-3 transition-all ${
+                scrolled 
+                  ? "bg-stone-900 text-white hover:bg-stone-800" 
+                  : "bg-white text-stone-900 hover:bg-white/90"
+              }`}
+            >
+              Book Appointment
+            </Link>
           </div>
 
-          {/* CTA Button */}
-          <div className="hidden md:block">
-            <button className="bg-white/90 backdrop-blur-sm text-black font-semibold text-xs uppercase tracking-[0.15em] px-6 py-2.5 hover:bg-white transition-colors shadow-lg">
-              Book Now
-            </button>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="md:hidden">
+          {/* Mobile menu button */}
+          <div className="md:hidden z-50 flex items-center">
             <button
               onClick={toggleMenu}
-              className="inline-flex items-center justify-center p-2 text-stone-300 hover:text-white focus:outline-none transition-colors"
-              aria-expanded={isOpen}
+              className={`p-2 transition-colors ${scrolled || isOpen ? "text-stone-900" : "text-white"}`}
             >
-              <svg
-                className={`h-6 w-6 transition-transform duration-300 ${
-                  isOpen ? "rotate-90" : ""
-                }`}
-                stroke="currentColor"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
+              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      {isOpen && (
-        <div className="md:hidden bg-stone-900 border-t border-white/10">
-          <div className="px-4 pt-2 pb-6 space-y-1">
-            <Link
-              href="/"
-              className="block text-stone-300 px-3 py-3 text-xs uppercase tracking-[0.15em] hover:bg-stone-800 hover:text-white transition-colors"
-              onClick={() => setIsOpen(false)}
-            >
-              Home
-            </Link>
-            <Link
-              href="/bookings"
-              className="block text-stone-300 px-3 py-3 text-xs uppercase tracking-[0.15em] hover:bg-stone-800 hover:text-white transition-colors"
-              onClick={() => setIsOpen(false)}
-            >
-              Bookings
-            </Link>
-            <Link
-              href="/recolor"
-              className="block text-stone-300 px-3 py-3 text-xs uppercase tracking-[0.15em] hover:bg-stone-800 hover:text-white transition-colors"
-              onClick={() => setIsOpen(false)}
-            >
-              Hair Recolor
-            </Link>
-            <button className="w-full text-center bg-white text-black mt-4 py-3 text-xs uppercase tracking-[0.15em] hover:bg-stone-200 transition-colors">
-              Book Now
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Mobile menu */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="md:hidden fixed inset-0 z-40 bg-white pt-24 px-6 flex flex-col space-y-6 max-h-screen overflow-y-auto"
+          >
+            {navLinks.map((link) => (
+              <Link
+                key={link.name}
+                href={link.href}
+                onClick={toggleMenu}
+                className="text-2xl font-serif text-stone-800 border-b border-stone-100 pb-4"
+              >
+                {link.name}
+              </Link>
+            ))}
+            
+            <div className="pt-4 flex flex-col space-y-4">
+              {user ? (
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    toggleMenu();
+                  }}
+                  className="text-lg font-medium text-stone-600 text-left"
+                >
+                  Logout
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={toggleMenu}
+                  className="text-lg font-medium text-stone-600"
+                >
+                  Sign In
+                </Link>
+              )}
+              <Link
+                href="/bookings"
+                onClick={toggleMenu}
+                className="bg-stone-900 text-white text-center py-4 text-sm font-semibold uppercase tracking-widest mt-4"
+              >
+                Book Appointment
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }
