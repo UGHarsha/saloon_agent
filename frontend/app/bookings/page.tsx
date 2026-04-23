@@ -46,73 +46,81 @@ export default function BookingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-rose-50 via-pink-50 to-purple-50">
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">📅 Appointments</h1>
-          <p className="text-gray-600">All scheduled bookings at Royal Glow Salon</p>
+    <div className="min-h-screen bg-[#FDFBF7] font-sans text-[#3E2723] pt-32 pb-12">
+      <div className="max-w-4xl mx-auto px-6">
+        <div className="text-center mb-16">
+          <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">Your Itinerary</p>
+          <h1 className="text-4xl md:text-5xl font-serif text-[#3E2723] mb-6">Appointments</h1>
+          <div className="w-16 h-px bg-stone-300 mx-auto"></div>
         </div>
 
         {loading && (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-pink-400"></div>
-            <p className="text-gray-600 mt-4">Loading appointments...</p>
+          <div className="text-center py-12 flex flex-col items-center justify-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#C69C6D]"></div>
+            <p className="text-stone-500 mt-4 text-sm tracking-widest uppercase">Loading schedule...</p>
           </div>
         )}
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <div className="bg-red-50/50 border border-red-100 text-red-800 px-6 py-4 text-center text-sm tracking-widest uppercase">
             {error}
           </div>
         )}
 
         {!loading && bookings.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">📭</div>
-            <p className="text-gray-600 text-lg">No appointments yet</p>
+          <div className="text-center py-20 border border-stone-200 bg-white shadow-sm">
+            <div className="text-4xl mb-6 opacity-50">�</div>
+            <p className="text-stone-500 text-sm tracking-widest uppercase mb-6">No appointments yet</p>
+            <Link
+              href="/"
+              className="inline-block border border-[#C69C6D] text-[#C69C6D] hover:bg-[#C69C6D] hover:text-white px-8 py-3 tracking-widest uppercase text-xs font-semibold transition-colors"
+            >
+              Book Now
+            </Link>
           </div>
         )}
 
         {!loading && bookings.length > 0 && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {bookings.map((booking) => (
               <div
                 key={booking.id}
-                className="bg-white rounded-2xl shadow-md p-6 border-l-4 border-pink-400"
+                className="bg-white shadow-sm p-8 border border-stone-100 relative group hover:border-[#C69C6D] transition-colors"
               >
-                <div className="flex justify-between items-start mb-4">
+                <div className="absolute top-0 left-0 w-1 h-full bg-[#C69C6D] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="flex flex-col md:flex-row justify-between md:items-center gap-6">
                   <div>
-                    <h3 className="text-xl font-bold text-gray-800">
+                    <h3 className="text-2xl font-serif text-[#3E2723] mb-1">
                       {booking.customer_name}
                     </h3>
-                    <p className="text-pink-600 font-semibold text-lg">
+                    <p className="text-[#C69C6D] font-semibold text-sm tracking-widest uppercase">
                       {booking.service}
                     </p>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-500 text-xs uppercase tracking-wide">Date</p>
-                    <p className="text-gray-800 font-medium">
-                      {new Date(booking.appointment_date).toLocaleDateString("en-US", {
-                        weekday: "short",
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500 text-xs uppercase tracking-wide">
-                      Booked At
-                    </p>
-                    <p className="text-gray-800 font-medium">
-                      {new Date(booking.created_at).toLocaleTimeString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
+                  <div className="flex gap-8 text-sm md:text-right border-t md:border-t-0 md:border-l border-stone-100 pt-4 md:pt-0 md:pl-8">
+                    <div>
+                      <p className="text-stone-400 text-[10px] uppercase tracking-[0.2em] mb-1 font-semibold">Date</p>
+                      <p className="text-[#3E2723] font-serif text-lg whitespace-nowrap">
+                        {new Date(booking.appointment_date).toLocaleDateString("en-US", {
+                          weekday: "short",
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-stone-400 text-[10px] uppercase tracking-[0.2em] mb-1 font-semibold">
+                        Booked At
+                      </p>
+                      <p className="text-[#3E2723] font-serif text-lg whitespace-nowrap">
+                        {new Date(booking.created_at).toLocaleTimeString("en-US", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -120,12 +128,12 @@ export default function BookingsPage() {
           </div>
         )}
 
-        <div className="mt-8">
+        <div className="mt-16 text-center">
           <Link
             href="/"
-            className="inline-block bg-linear-to-r from-rose-400 to-pink-400 hover:from-rose-500 hover:to-pink-500 text-white px-6 py-3 rounded-2xl font-semibold transition-all duration-300 shadow-md hover:shadow-lg"
+            className="inline-block text-[#3E2723] text-xs tracking-widest uppercase hover:text-[#C69C6D] transition-colors border-b border-[#3E2723] hover:border-[#C69C6D] pb-1"
           >
-            ← Back to Chat
+            ← Return Home
           </Link>
         </div>
       </div>
