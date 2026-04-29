@@ -33,8 +33,8 @@ export default function BookingsPage() {
     
     checkAuthAndFetchInfo();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
         router.push("/login");
       }
     });

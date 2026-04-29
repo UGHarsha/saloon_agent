@@ -1,10 +1,10 @@
 "use client";
-import { useState, useEffect, FormEvent, KeyboardEvent } from "react";
+import { useState, useEffect, FormEvent, KeyboardEvent, Suspense } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../utils/supabase";
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [bookingView, setBookingView] = useState<"none" | "ai" | "manual">("none");
@@ -21,7 +21,8 @@ export default function Home() {
   // Manual booking states
   const [manualForm, setManualForm] = useState({
     name: "",
-    service: "Haircut & Styling",
+    category: "men",
+    service: "Adult Buzz Cut 60 min (Rs. 5000+)",
     date: "",
     time: "10:00 AM",
   });
@@ -248,14 +249,42 @@ export default function Home() {
                       </div>
                       
                       {/* Service select */}
+                      <div className="mb-4">
+                        <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Category</label>
+                        <select
+                          value={manualForm.category}
+                          onChange={(e) => setManualForm({...manualForm, category: e.target.value, service: e.target.value === 'men' ? 'Adult Buzz Cut 60 min (Rs. 5000+)' : 'Women\'s Haircut (Rs. 6000+)'})}
+                          className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif appearance-none"
+                        >
+                          <option value="men">Men</option>
+                          <option value="women">Women</option>
+                        </select>
+                      </div>
+
                       <div>
                         <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Service</label>
-                        <select value={manualForm.service} onChange={(e) => setManualForm({...manualForm, service: e.target.value})} className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif appearance-none">
-                          <option>Haircut & Styling</option>
-                          <option>Color & Highlights</option>
-                          <option>Keratin Treatment</option>
-                          <option>Bridal Package</option>
-                          <option>Consultation</option>
+                        <select
+                          value={manualForm.service}
+                          onChange={(e) => setManualForm({...manualForm, service: e.target.value})}
+                          className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif appearance-none"
+                        >
+                          {manualForm.category === "women" ? (
+                            <>
+                              <option value="Women's Haircut 60 min (Rs. 6000+)">Women&apos;s Haircut 60 min (Rs. 6000+)</option>
+                              <option value="Color & Highlights 120 min (Rs. 15000+)">Color & Highlights 120 min (Rs. 15000+)</option>
+                              <option value="Keratin Treatment 120 min (Rs. 25000+)">Keratin Treatment 120 min (Rs. 25000+)</option>
+                              <option value="Bridal Package 180 min (Rs. 50000+)">Bridal Package 180 min (Rs. 50000+)</option>
+                              <option value="Consultation 30 min (Rs. 2000)">Consultation 30 min (Rs. 2000)</option>
+                            </>
+                          ) : (
+                            <>
+                              <option value="Adult Buzz Cut 60 min (Rs. 5000+)">Adult Buzz Cut 60 min (Rs. 5000+)</option>
+                              <option value="Clean Up - Beard & Neck Trim 15 min (Rs. 2500+)">Clean Up - Beard & Neck Trim 15 min (Rs. 2500+)</option>
+                              <option value="Gent hair cut 30 min (Rs. 4000+)">Gent hair cut 30 min (Rs. 4000+)</option>
+                              <option value="Color & Highlights 60 min (Rs. 10000+)">Color & Highlights 60 min (Rs. 10000+)</option>
+                              <option value="Consultation 15 min (Rs. 2000)">Consultation 15 min (Rs. 2000)</option>
+                            </>
+                          )}
                         </select>
                       </div>
 
@@ -420,9 +449,17 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-[#3E2723] text-stone-400 py-12 px-6">
         <div className="max-w-6xl mx-auto border-t border-stone-800 pt-8 text-center text-xs">
-          <p>© {new Date().getFullYear()} Our Salon. All Rights Reserved.</p>
+          <p>Â© {new Date().getFullYear()} Our Salon. All Rights Reserved.</p>
         </div>
       </footer>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HomeContent />
+    </Suspense>
   );
 }
