@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { SupabaseClient } from "@supabase/supabase-js";
+import { SupabaseClient, User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../utils/supabase";
+import { User as UserIcon, Mail, LogOut } from "lucide-react";
 
 interface Booking {
   id: string;
@@ -17,6 +18,7 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -28,7 +30,8 @@ export default function BookingsPage() {
         return;
       }
       
-      fetchBookings(supabase);
+      setUser(session.user);
+      fetchBookings(supabase, session.user.id);
     };
     
     checkAuthAndFetchInfo();
@@ -44,18 +47,29 @@ export default function BookingsPage() {
     };
   }, [router]);
 
-  const fetchBookings = async (supabase: SupabaseClient) => {
+  const fetchBookings = async (supabase: SupabaseClient, userId: string) => {
     try {
-      const { data, error: fetchError } = await supabase
+      const missingUserIdColumn = (message?: string) => {
+        const msg = (message || "").toLowerCase();
+        return msg.includes("user_id") && (msg.includes("schema cache") || msg.includes("does not exist"));
+      };
+
+      let { data, error: fetchError } = await supabase
         .from("bookings")
         .select("*")
+        .eq("user_id", userId)
         .order("appointment_date", { ascending: false });
 
-      if (fetchError) {
-        setError(fetchError.message);
-      } else {
-        setBookings(data || []);
+      if (fetchError && missingUserIdColumn(fetchError.message)) {
+        // Fallback: table doesn't have user_id yet; show all bookings so UI works.
+        ({ data, error: fetchError } = await supabase
+          .from("bookings")
+          .select("*")
+          .order("appointment_date", { ascending: false }));
       }
+
+      if (fetchError) setError(fetchError.message);
+      else setBookings(data || []);
     } catch (err) {
       setError("Failed to fetch bookings");
       console.error(err);
@@ -64,9 +78,44 @@ export default function BookingsPage() {
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] font-sans text-[#3E2723] pt-32 pb-12">
       <div className="max-w-4xl mx-auto px-6">
+        {/* Profile Section */}
+        {user && (
+          <div className="bg-white border border-stone-200 shadow-sm p-8 mb-12 rounded-lg">
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-linear-to-br from-[#C69C6D] to-[#A0735B] rounded-full flex items-center justify-center">
+                  <UserIcon className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <p className="text-stone-400 text-xs uppercase tracking-[0.15em] font-semibold mb-1">My Profile</p>
+                  <h2 className="text-2xl font-serif text-[#3E2723]">
+                    {user.user_metadata?.full_name || "Customer"}
+                  </h2>
+                  <p className="text-[#C69C6D] text-sm flex items-center gap-2 mt-2">
+                    <Mail className="w-4 h-4" />
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-6 py-3 border border-[#C69C6D] text-[#C69C6D] hover:bg-[#C69C6D] hover:text-white transition-colors uppercase text-xs font-semibold tracking-wider"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="text-center mb-16">
           <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">Your Itinerary</p>
           <h1 className="text-4xl md:text-5xl font-serif text-[#3E2723] mb-6">Appointments</h1>

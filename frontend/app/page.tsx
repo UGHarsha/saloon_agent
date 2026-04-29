@@ -61,6 +61,14 @@ function HomeContent() {
     setManualLoading(true);
     setManualSuccess(false);
 
+    // Get current user
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) {
+      alert("Please login first");
+      setManualLoading(false);
+      return;
+    }
+
     // Combine date and time
     const dateTimeString = `${manualForm.date}T${
       manualForm.time === "10:00 AM" ? "10:00:00" :
@@ -69,19 +77,39 @@ function HomeContent() {
     }`;
 
     try {
-      const { error } = await supabase.from("bookings").insert([
-        {
+      const appointmentDate = new Date(dateTimeString).toISOString();
+
+      const missingUserIdColumn = (message?: string) => {
+        const msg = (message || "").toLowerCase();
+        return msg.includes("user_id") && (msg.includes("schema cache") || msg.includes("does not exist"));
+      };
+
+      const payloadWithUser = {
+        user_id: session.user.id,
+        customer_name: manualForm.name,
+        service: manualForm.service,
+        appointment_date: appointmentDate,
+      };
+
+      let insertError = (await supabase.from("bookings").insert([payloadWithUser]).select()).error;
+
+      if (insertError && missingUserIdColumn(insertError.message)) {
+        const payloadWithoutUser = {
           customer_name: manualForm.name,
           service: manualForm.service,
-          appointment_date: new Date(dateTimeString).toISOString(),
-        },
-      ]);
-      if (error) throw error;
+          appointment_date: appointmentDate,
+        };
+        insertError = (await supabase.from("bookings").insert([payloadWithoutUser]).select()).error;
+      }
+
+      if (insertError) throw new Error(insertError.message || "Failed to book appointment");
+
       setManualSuccess(true);
       setManualForm({ ...manualForm, name: "" }); // Reset some fields
     } catch (error) {
-      console.error("Booking error:", error);
-      alert("Failed to book appointment. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Booking error:", errorMessage);
+      alert(`Failed to book appointment: ${errorMessage}`);
     } finally {
       setManualLoading(false);
     }
@@ -89,6 +117,12 @@ function HomeContent() {
 
   const sendMessage = async () => {
     if (!input.trim()) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) {
+      setChatLog((prev) => [...prev, { role: "bella", text: "Please login first to book an appointment." }]);
+      return;
+    }
 
     const userMsg = { role: "user", text: input };
     setChatLog([...chatLog, userMsg]);
@@ -104,6 +138,8 @@ function HomeContent() {
         body: JSON.stringify({
           message: input,
           history: chatLog,
+          userId: session.user.id,
+          accessToken: session.access_token,
         }),
       });
 

@@ -24,6 +24,20 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 );
 
+function getRequestSupabase(accessToken) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+  if (!accessToken) return supabase;
+
+  return createClient(url, anonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  });
+}
+
 const genAI = new GoogleGenAI({
   apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || "",
 });
@@ -509,11 +523,13 @@ Bella:`;
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, history } = req.body;
+    const { message, history, userId, accessToken } = req.body;
     const safeMessage = typeof message === 'string' ? message.trim() : '';
     const safeHistory = Array.isArray(history)
       ? history.filter((msg) => msg && typeof msg.text === 'string' && typeof msg.role === 'string')
       : [];
+    const safeUserId = typeof userId === 'string' ? userId.trim() : '';
+    const safeAccessToken = typeof accessToken === 'string' ? accessToken.trim() : '';
 
     if (!safeMessage) {
       return res.status(400).json({ error: "Message is required." });
@@ -555,16 +571,31 @@ app.post('/api/chat', async (req, res) => {
             dateTimeString = `${dateTimeString}T12:00:00`;
         }
 
+        const missingUserIdColumn = (message) => {
+          const msg = String(message || "").toLowerCase();
+          return msg.includes("user_id") && (msg.includes("schema cache") || msg.includes("does not exist"));
+        };
+
         const bookingData = {
           customer_name: appointmentDetails.customerName || "Guest",
           service: appointmentDetails.service,
           appointment_date: new Date(dateTimeString).toISOString(),
         };
 
+        if (safeUserId) {
+          bookingData.user_id = safeUserId;
+        }
+
         console.log("Saving appointment to Supabase:", bookingData);
         console.log("Supabase config check (URL):", !!process.env.NEXT_PUBLIC_SUPABASE_URL);
 
-        const { data, error } = await supabase.from("bookings").insert([bookingData]).select();
+        const requestSupabase = getRequestSupabase(safeAccessToken);
+        let { data, error } = await requestSupabase.from("bookings").insert([bookingData]).select();
+
+        if (error && bookingData.user_id && missingUserIdColumn(error.message)) {
+          delete bookingData.user_id;
+          ({ data, error } = await requestSupabase.from("bookings").insert([bookingData]).select());
+        }
 
         if (error) {
           console.error("Supabase error:", error);

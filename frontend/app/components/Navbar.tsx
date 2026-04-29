@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { supabase } from "../../utils/supabase";
@@ -64,8 +65,24 @@ export default function Navbar() {
         <div className="flex justify-between items-center">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2 group z-50">
-            <Scissors className={`w-6 h-6 transition-colors ${isSolid ? "text-stone-900" : "text-white"}`} />
-            <span className={`font-serif tracking-widest text-xl transition-colors ${isSolid ? "text-stone-900" : "text-white"}`}>
+            {isSolid ? (
+              <Image 
+                src="/black.png" 
+                alt="Royal Glow Logo" 
+                width={55}
+                height={55}
+                className="object-contain"
+              />
+            ) : (
+              <Image 
+                src="/wite.png" 
+                alt="Royal Glow Logo" 
+                width={55}
+                height={55}
+                className="object-contain"
+              />
+            )}
+            <span className={`font-serif tracking-widest text-base transition-colors hidden sm:block ${isSolid ? "text-stone-900" : "text-white"}`}>
               ROYAL GLOW
             </span>
           </Link>
