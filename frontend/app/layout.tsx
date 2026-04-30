@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "./components/Navbar";
-import AIBotButton from "./components/AIBotButton";
+import Footer from "./components/Footer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -21,8 +21,8 @@ export default function RootLayout({
       <body className={`${inter.className} bg-stone-50 text-stone-900 antialiased`} suppressHydrationWarning>
         <Navbar />
         {children}
-        <AIBotButton />
+        <Footer />
       </body>
-    </html>
+    </html >
   );
 }
