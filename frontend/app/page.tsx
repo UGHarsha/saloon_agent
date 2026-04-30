@@ -555,12 +555,7 @@ function HomeContent() {
         </p>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-[#3E2723] text-stone-400 py-12 px-6">
-        <div className="max-w-6xl mx-auto border-t border-stone-800 pt-8 text-center text-xs">
-          <p>Â© {new Date().getFullYear()} Our Salon. All Rights Reserved.</p>
-        </div>
-      </footer>
+
 
     </main>
   );
