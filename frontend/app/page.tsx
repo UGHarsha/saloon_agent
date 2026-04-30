@@ -29,16 +29,84 @@ function HomeContent() {
   const [manualLoading, setManualLoading] = useState(false);
   const [manualSuccess, setManualSuccess] = useState(false);
 
+  const [bookingsData, setBookingsData] = useState<{ start: number, end: number }[]>([]);
+
+  useEffect(() => {
+    async function fetchBookedTimes() {
+      if (!manualForm.date) {
+        setBookingsData([]);
+        return;
+      }
+
+      const startOfDay = new Date(`${manualForm.date}T00:00:00`).toISOString();
+      const endOfDay = new Date(`${manualForm.date}T23:59:59`).toISOString();
+
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('appointment_date, service')
+        .gte('appointment_date', startOfDay)
+        .lte('appointment_date', endOfDay);
+
+      if (!error && data) {
+        const bookingsList = data.map(b => {
+          const date = new Date(b.appointment_date);
+          const startMin = date.getHours() * 60 + date.getMinutes();
+          const p = b.service ? b.service.match(/(\d+)\s*min/) : null;
+          const dur = p ? parseInt(p[1]) : 60;
+          return { start: startMin, end: startMin + dur };
+        });
+        setBookingsData(bookingsList);
+      }
+    }
+    fetchBookedTimes();
+  }, [manualForm.date, manualSuccess]);
+
+  let availableTimes: string[] = [];
+  if (manualForm.date) {
+    const d = new Date(manualForm.date);
+    if (d.getDay() !== 0) { // Not Sunday
+      const durationMin = parseInt(manualForm.service.match(/(\d+)\s*min/)?.[1] || "60");
+      const shopOpenMin = 9 * 60; // 9:00 AM
+      const shopCloseMin = 20 * 60; // 8:00 PM
+
+      for (let min = shopOpenMin; min + durationMin <= shopCloseMin; min += 30) {
+        const newStart = min;
+        const newEnd = min + durationMin;
+        const isOverlapping = bookingsData.some(b => Math.max(newStart, b.start) < Math.min(newEnd, b.end));
+
+        if (!isOverlapping) {
+          const hours = Math.floor(min / 60);
+          const minutes = min % 60;
+          const ampm = hours >= 12 ? 'PM' : 'AM';
+          const h12 = hours % 12 || 12;
+          const minStr = minutes.toString().padStart(2, '0');
+          availableTimes.push(`${h12}:${minStr} ${ampm}`);
+        }
+      }
+    }
+  }
+
+  const availableTimesJoined = availableTimes.join(',');
+  useEffect(() => {
+    if (availableTimes.length > 0 && !availableTimes.includes(manualForm.time)) {
+      setManualForm(prev => ({ ...prev, time: availableTimes[0] }));
+    } else if (availableTimes.length === 0 && manualForm.time !== "") {
+      setManualForm(prev => ({ ...prev, time: "" }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableTimesJoined]);
+
   const [input, setInput] = useState("");
   const [chatLog, setChatLog] = useState<{ role: string; text: string }[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (searchParams.get("book") === "true") {
+    const bookParam = searchParams.get("book");
+    if (bookParam === "true" || bookParam === "manual" || bookParam === "ai") {
       const checkAuth = async () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          setBookingView("manual");
+          setBookingView(bookParam === "ai" ? "ai" : "manual");
         } else {
           router.push("/login");
         }
@@ -54,6 +122,7 @@ function HomeContent() {
       return;
     }
     setBookingView(view);
+    setManualSuccess(false); // Reset success state when opening the form
   };
 
   const handleManualSubmit = async (e: FormEvent) => {
@@ -70,11 +139,15 @@ function HomeContent() {
     }
 
     // Combine date and time
-    const dateTimeString = `${manualForm.date}T${
-      manualForm.time === "10:00 AM" ? "10:00:00" :
-      manualForm.time === "1:00 PM" ? "13:00:00" :
-      manualForm.time === "3:00 PM" ? "15:00:00" : "12:00:00"
-    }`;
+    const convertTimeToLocalTimeStr = (timeStr: string) => {
+      if (!timeStr) return "12:00:00";
+      const [time, modifier] = timeStr.split(' ');
+      let [hours, minutes] = time.split(':');
+      if (hours === '12') hours = '00';
+      if (modifier === 'PM') hours = (parseInt(hours, 10) + 12).toString();
+      return `${hours.padStart(2, '0')}:${minutes}:00`;
+    };
+    const dateTimeString = `${manualForm.date}T${convertTimeToLocalTimeStr(manualForm.time)}`;
 
     try {
       const appointmentDate = new Date(dateTimeString).toISOString();
@@ -189,12 +262,12 @@ function HomeContent() {
 
   return (
     <main className="min-h-screen bg-[#FDFBF7] font-sans text-[#3E2723]">
-      
+
       {/* Booking Modal */}
-        {bookingView !== "none" && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-white max-w-4xl w-full max-h-[90vh] overflow-y-auto flex flex-col shadow-2xl relative">
-              <button
+      {bookingView !== "none" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white max-w-4xl w-full max-h-[90vh] overflow-y-auto flex flex-col shadow-2xl relative">
+            <button
               onClick={() => {
                 setBookingView("none");
                 if (searchParams.get("book") === "true") router.replace("/");
@@ -232,21 +305,19 @@ function HomeContent() {
             <div className="flex bg-stone-50/50 p-2 gap-2 border-b border-stone-100 shrink-0">
               <button
                 onClick={() => setBookingView("manual")}
-                className={`flex-1 py-3 text-xs font-semibold tracking-widest uppercase transition-all rounded-sm ${
-                  bookingView === "manual" 
-                    ? "bg-[#C69C6D] text-white shadow-md mx-1" 
-                    : "bg-transparent text-stone-500 hover:text-stone-800 hover:bg-white"
-                }`}
+                className={`flex-1 py-3 text-xs font-semibold tracking-widest uppercase transition-all rounded-sm ${bookingView === "manual"
+                  ? "bg-[#C69C6D] text-white shadow-md mx-1"
+                  : "bg-transparent text-stone-500 hover:text-stone-800 hover:bg-white"
+                  }`}
               >
                 Manual Booking
               </button>
               <button
                 onClick={() => setBookingView("ai")}
-                className={`flex-1 py-3 text-xs font-semibold tracking-widest uppercase transition-all rounded-sm ${
-                  bookingView === "ai" 
-                    ? "bg-[#C69C6D] text-white shadow-md mx-1" 
-                    : "bg-transparent text-stone-500 hover:text-stone-800 hover:bg-white"
-                }`}
+                className={`flex-1 py-3 text-xs font-semibold tracking-widest uppercase transition-all rounded-sm ${bookingView === "ai"
+                  ? "bg-[#C69C6D] text-white shadow-md mx-1"
+                  : "bg-transparent text-stone-500 hover:text-stone-800 hover:bg-white"
+                  }`}
               >
                 AI Assistant
               </button>
@@ -281,15 +352,15 @@ function HomeContent() {
                       {/* Name input */}
                       <div>
                         <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Full Name</label>
-                        <input type="text" required value={manualForm.name} onChange={(e) => setManualForm({...manualForm, name: e.target.value})} className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif placeholder-stone-300" placeholder="Jane Doe"/>
+                        <input type="text" required value={manualForm.name} onChange={(e) => setManualForm({ ...manualForm, name: e.target.value })} className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif placeholder-stone-300" placeholder="Jane Doe" />
                       </div>
-                      
+
                       {/* Service select */}
                       <div className="mb-4">
                         <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Category</label>
                         <select
                           value={manualForm.category}
-                          onChange={(e) => setManualForm({...manualForm, category: e.target.value, service: e.target.value === 'men' ? 'Adult Buzz Cut 60 min (Rs. 5000+)' : 'Women\'s Haircut (Rs. 6000+)'})}
+                          onChange={(e) => setManualForm({ ...manualForm, category: e.target.value, service: e.target.value === 'men' ? 'Adult Buzz Cut 60 min (Rs. 5000+)' : 'Women\'s Haircut (Rs. 6000+)' })}
                           className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif appearance-none"
                         >
                           <option value="men">Men</option>
@@ -301,7 +372,7 @@ function HomeContent() {
                         <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Service</label>
                         <select
                           value={manualForm.service}
-                          onChange={(e) => setManualForm({...manualForm, service: e.target.value})}
+                          onChange={(e) => setManualForm({ ...manualForm, service: e.target.value })}
                           className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif appearance-none"
                         >
                           {manualForm.category === "women" ? (
@@ -327,31 +398,35 @@ function HomeContent() {
                       <div className="grid grid-cols-2 gap-6">
                         <div>
                           <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Date</label>
-                          <input type="date" required value={manualForm.date} onChange={(e) => setManualForm({...manualForm, date: e.target.value})} className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif"/>
+                          <input type="date" min={new Date().toLocaleDateString('en-CA')} required value={manualForm.date} onChange={(e) => setManualForm({ ...manualForm, date: e.target.value })} className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif" />
                         </div>
                         <div>
                           <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Time</label>
-                          <select value={manualForm.time} onChange={(e) => setManualForm({...manualForm, time: e.target.value})} className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif appearance-none">
-                            <option>10:00 AM</option>
-                            <option>1:00 PM</option>
-                            <option>3:00 PM</option>
+                          <select value={manualForm.time} onChange={(e) => setManualForm({ ...manualForm, time: e.target.value })} className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif appearance-none">
+                            {availableTimes.length > 0 ? (
+                              availableTimes.map(time => (
+                                <option key={time} value={time}>{time}</option>
+                              ))
+                            ) : (
+                              <option value="" disabled>No slots available</option>
+                            )}
                           </select>
                         </div>
                       </div>
 
-                      <button type="submit" disabled={manualLoading} className="w-full bg-[#C69C6D] text-white py-4 mt-8 uppercase tracking-widest text-sm font-semibold hover:bg-[#B38759] transition-colors disabled:opacity-50">
-                        {manualLoading ? "Processing..." : "Confirm Booking"}
+                      <button type="submit" disabled={manualLoading || !manualForm.time} className="w-full bg-[#C69C6D] text-white py-4 mt-8 uppercase tracking-widest text-sm font-semibold hover:bg-[#B38759] transition-colors disabled:opacity-50">
+                        {manualLoading ? "Processing..." : !manualForm.time ? "No Slots Available" : "Confirm Booking"}
                       </button>
                     </form>
                   </div>
                 )}
               </div>
             )}
-            
+
             {bookingView === "ai" && (
               <div className="flex-1 flex flex-col h-full bg-stone-50 relative">
                 <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] pointer-events-none mix-blend-overlay"></div>
-                
+
                 {/* Chat Container */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-transparent z-10 w-full">
                   {chatLog.length === 0 ? (
@@ -371,11 +446,10 @@ function HomeContent() {
                         className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-fadeIn`}
                       >
                         <div
-                          className={`max-w-[85%] px-5 py-4 rounded-2xl transition-all duration-300 shadow-sm ${
-                            msg.role === "user"
-                              ? "bg-[#C69C6D] text-white rounded-br-sm"
-                              : "bg-white border border-stone-200 text-[#3E2723] rounded-bl-sm"
-                          }`}
+                          className={`max-w-[85%] px-5 py-4 rounded-2xl transition-all duration-300 shadow-sm ${msg.role === "user"
+                            ? "bg-[#C69C6D] text-white rounded-br-sm"
+                            : "bg-white border border-stone-200 text-[#3E2723] rounded-bl-sm"
+                            }`}
                         >
                           {msg.role === "bella" && (
                             <div className="flex items-center gap-2 mb-2">
@@ -441,9 +515,8 @@ function HomeContent() {
               alt={`Luxury Salon Interior ${idx + 1}`}
               fill
               priority={idx === 0}
-              className={`object-cover object-center transition-opacity duration-1000 ${
-                idx === currentHeroSlide ? "opacity-100" : "opacity-0"
-              }`}
+              className={`object-cover object-center transition-opacity duration-1000 ${idx === currentHeroSlide ? "opacity-100" : "opacity-0"
+                }`}
             />
           ))}
           <div className="absolute inset-0 bg-black/40 z-10 transition-opacity duration-1000" />
@@ -452,7 +525,7 @@ function HomeContent() {
         <div className="relative z-10 max-w-5xl mx-auto text-center px-4">
           <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-6 font-semibold">Discover Luxury</p>
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif mb-8 leading-tight tracking-tight">
-            Refined <br/> Elegance
+            Refined <br /> Elegance
           </h1>
           <p className="text-stone-50 max-w-2xl mx-auto mb-12 text-base md:text-lg font-light leading-relaxed">
             Experience the pinnacle of modern styling and personalized beauty at our salon, inspired by the excellence of noelines.com.
@@ -476,12 +549,12 @@ function HomeContent() {
 
       {/* Philosophy Section */}
       <section className="bg-[#FDFBF7] py-24 px-6 md:px-12 text-center text-[#3E2723]">
-         <h2 className="text-3xl font-serif mb-6">Our Philosophy</h2>
-         <p className="max-w-3xl mx-auto mb-10 leading-relaxed text-stone-600">
-           We believe that every individual has a unique essence. Our goal is to bring that forth through precise techniques, premium products, and an environment that exudes serenity. Inspired by the best in the industry, we infuse a touch of gold and warmth into every aspect of your visit.
-         </p>
+        <h2 className="text-3xl font-serif mb-6">Our Philosophy</h2>
+        <p className="max-w-3xl mx-auto mb-10 leading-relaxed text-stone-600">
+          We believe that every individual has a unique essence. Our goal is to bring that forth through precise techniques, premium products, and an environment that exudes serenity. Inspired by the best in the industry, we infuse a touch of gold and warmth into every aspect of your visit.
+        </p>
       </section>
-      
+
       {/* Footer */}
       <footer className="bg-[#3E2723] text-stone-400 py-12 px-6">
         <div className="max-w-6xl mx-auto border-t border-stone-800 pt-8 text-center text-xs">
