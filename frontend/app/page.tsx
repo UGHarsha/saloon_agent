@@ -4,10 +4,63 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../utils/supabase";
 
+const lookBookImages = [
+  { src: "/customers/client-doing-hair-cut-barber-shop-salon_1303-20710.jpg", alt: "Barber shop styling" },
+  { src: "/customers/female-hairdresser-beauty-salon_1303-27755.jpg", alt: "Beauty salon look" },
+  { src: "/customers/female-hairdresser-making-hairstyle-blonde-woman-beauty-salon_176420-4458.jpg", alt: "Blonde hairstyle" },
+  { src: "/customers/female-hairdresser-making-hairstyle-redhead-woman-beauty-salon_176420-4476.jpg", alt: "Redhead hairstyle" },
+  { src: "/customers/female-hairdresser-making-hairstyle-redhead-woman-beauty-salon_176420-4482.jpg", alt: "Elegant redhead styling" },
+  { src: "/customers/female-hairdresser-using-hairbrush-hair-dryer_329181-1929.jpg", alt: "Professional blow dry" },
+  { src: "/customers/pretty-cute-young-woman-with-long-brunette-hair-smiling-camera-hairdresser-salon_197531-3664.jpg", alt: "Happy client" },
+  { src: "/customers/professional-girl-hairdresser-makes-client-haircut-girl-is-sitting-mask-beauty-salon_343596-4444.jpg", alt: "Professional haircut" },
+  { src: "/customers/woman-washing-head-hairsalon_1157-27179.jpg", alt: "Hair wash treatment" },
+  { src: "/customers/young-beautiful-bride-is-standing-summer-park-with-bouquet-flowers.jpg", alt: "Bridal styling" },
+  { src: "/customers/young-man-barbershop-trimming-hair_1303-26254.jpg", alt: "Men's grooming" },
+];
+
+const aboutFeatures = [
+  {
+    icon: (<svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>),
+    title: "AI-Powered Booking",
+    description: "Chat with our AI assistant Bella to book appointments effortlessly, get style recommendations, and more.",
+  },
+  {
+    icon: (<svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>),
+    title: "Virtual Try-On",
+    description: "Experiment with different hair colors and styles using our AR-powered virtual try-on before you commit.",
+  },
+  {
+    icon: (<svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>),
+    title: "Flexible Scheduling",
+    description: "Real-time availability with 30-minute time slots. Book manually or let AI find the best time for you.",
+  },
+  {
+    icon: (<svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>),
+    title: "Premium Products",
+    description: "We use only top-tier professional products for all our treatments, ensuring the best results for your hair.",
+  },
+  {
+    icon: (<svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>),
+    title: "Expert Stylists",
+    description: "Our team of experienced professionals is trained in the latest trends and classic techniques alike.",
+  },
+  {
+    icon: (<svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>),
+    title: "Bridal Packages",
+    description: "Complete bridal styling packages including trial sessions, on-the-day styling, and stunning makeovers.",
+  },
+];
+
+const aboutServices = [
+  { category: "Men", items: ["Adult Buzz Cut", "Gent Hair Cut", "Beard & Neck Trim", "Color & Highlights", "Consultation"] },
+  { category: "Women", items: ["Women's Haircut", "Color & Highlights", "Keratin Treatment", "Bridal Package", "Consultation"] },
+];
+
 function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [bookingView, setBookingView] = useState<"none" | "ai" | "manual">("none");
+  const [selectedImage, setSelectedImage] = useState<number | null>(null);
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
   const heroImages = ["/salon.jpg", "/2.jpg", "/3.jpg"];
 
@@ -555,7 +608,293 @@ function HomeContent() {
         </p>
       </section>
 
+      {/* ===== ABOUT US SECTIONS ===== */}
 
+      {/* Story Section */}
+      <section id="about" className="py-20 md:py-28 px-6 md:px-12 bg-[#FDFBF7]">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+          <div>
+            <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">Our Story</p>
+            <h2 className="text-3xl md:text-4xl font-serif mb-6 leading-tight">
+              Crafting Beauty <br />Since Day One
+            </h2>
+            <p className="text-stone-600 leading-relaxed mb-6">
+              Royal Glow Salon was born from a passion for making people feel their absolute best.
+              Nestled in the vibrant city of <strong>Matara</strong>, we have built a reputation for
+              delivering exceptional hair care, cutting-edge styling, and a truly luxurious experience.
+            </p>
+            <p className="text-stone-600 leading-relaxed mb-6">
+              Our team of expert stylists stays at the forefront of global trends while respecting
+              each client&apos;s individuality. We believe that every visit should be more than an
+              appointment — it should be a moment of transformation and self-care.
+            </p>
+            <p className="text-stone-600 leading-relaxed">
+              From classic cuts to bridal packages, color transformations to keratin treatments,
+              we offer a comprehensive range of services for both men and women using only premium
+              professional products.
+            </p>
+          </div>
+          <div className="relative h-[500px] group">
+            <Image
+              src="/customers/pretty-cute-young-woman-with-long-brunette-hair-smiling-camera-hairdresser-salon_197531-3664.jpg"
+              alt="Happy client at Royal Glow Salon"
+              fill
+              className="object-cover shadow-2xl transition-transform duration-700 group-hover:scale-[1.02]"
+            />
+            <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-[#C69C6D] flex items-center justify-center">
+              <div className="text-white text-center">
+                <p className="text-3xl font-serif font-bold">5★</p>
+                <p className="text-[10px] uppercase tracking-widest mt-1">Rated</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="bg-[#3E2723] py-20 md:py-28 px-6 md:px-12">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">Why Choose Us</p>
+            <h2 className="text-3xl md:text-4xl font-serif text-white mb-4">Our Features</h2>
+            <p className="text-stone-400 max-w-2xl mx-auto">
+              We combine technology, expertise, and luxury to deliver an unmatched salon experience.
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {aboutFeatures.map((feature, idx) => (
+              <div
+                key={idx}
+                className="bg-white/5 border border-white/10 p-8 backdrop-blur-sm hover:bg-white/10 transition-all duration-300 group"
+              >
+                <div className="text-[#C69C6D] mb-5 group-hover:scale-110 transition-transform duration-300">
+                  {feature.icon}
+                </div>
+                <h3 className="text-white font-serif text-lg mb-3">{feature.title}</h3>
+                <p className="text-stone-400 text-sm leading-relaxed">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Services Overview */}
+      <section className="py-20 md:py-28 px-6 md:px-12 bg-[#FDFBF7]">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">What We Offer</p>
+            <h2 className="text-3xl md:text-4xl font-serif mb-4">Our Services</h2>
+            <p className="text-stone-500 max-w-2xl mx-auto">
+              A curated selection of premium hair care and styling services for every occasion.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-10 max-w-4xl mx-auto">
+            {aboutServices.map((group) => (
+              <div key={group.category} className="bg-white border border-stone-100 shadow-sm p-8 hover:shadow-md transition-shadow duration-300">
+                <h3 className="text-xl font-serif text-[#3E2723] mb-6 pb-4 border-b border-stone-100 flex items-center gap-3">
+                  <span className="w-8 h-8 bg-[#C69C6D]/10 rounded-full flex items-center justify-center">
+                    <svg className="w-4 h-4 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </span>
+                  {group.category}
+                </h3>
+                <ul className="space-y-4">
+                  {group.items.map((item) => (
+                    <li key={item} className="flex items-center gap-3 text-stone-600">
+                      <span className="w-1.5 h-1.5 bg-[#C69C6D] rounded-full shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <a
+                  href="/services"
+                  className="inline-block mt-6 text-[#C69C6D] text-xs uppercase tracking-widest font-semibold hover:text-[#B38759] transition-colors border-b border-[#C69C6D]/30 pb-0.5"
+                >
+                  View Full Menu →
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Look Book Section */}
+      <section className="py-20 md:py-28 px-6 md:px-12 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">Inspiration</p>
+            <h2 className="text-3xl md:text-4xl font-serif mb-4">Look Book</h2>
+            <p className="text-stone-500 max-w-2xl mx-auto">
+              Browse through our portfolio of stunning transformations and styles crafted by our expert team.
+            </p>
+          </div>
+          <div className="columns-2 md:columns-3 gap-4 space-y-4">
+            {lookBookImages.map((img, idx) => (
+              <div
+                key={idx}
+                className="break-inside-avoid group cursor-pointer relative overflow-hidden"
+                onClick={() => setSelectedImage(idx)}
+              >
+                <Image
+                  src={img.src}
+                  alt={img.alt}
+                  width={600}
+                  height={400}
+                  className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">
+                  <svg
+                    className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                  </svg>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Lightbox Modal */}
+      {selectedImage !== null && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm"
+          onClick={() => setSelectedImage(null)}
+        >
+          <button
+            onClick={() => setSelectedImage(null)}
+            className="absolute top-6 right-6 text-white/70 hover:text-white transition-colors z-50"
+          >
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setSelectedImage((selectedImage - 1 + lookBookImages.length) % lookBookImages.length); }}
+            className="absolute left-4 md:left-8 text-white/70 hover:text-white transition-colors"
+          >
+            <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setSelectedImage((selectedImage + 1) % lookBookImages.length); }}
+            className="absolute right-4 md:right-8 text-white/70 hover:text-white transition-colors"
+          >
+            <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+          <div className="max-w-4xl max-h-[85vh] relative" onClick={(e) => e.stopPropagation()}>
+            <Image
+              src={lookBookImages[selectedImage].src}
+              alt={lookBookImages[selectedImage].alt}
+              width={1200}
+              height={800}
+              className="max-h-[85vh] w-auto object-contain"
+            />
+            <p className="text-center text-white/60 text-sm mt-4 tracking-wide">
+              {lookBookImages[selectedImage].alt} — {selectedImage + 1} / {lookBookImages.length}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Salon Details / Contact Section */}
+      <section className="py-20 md:py-28 px-6 md:px-12 bg-[#FDFBF7]">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">Get in Touch</p>
+            <h2 className="text-3xl md:text-4xl font-serif mb-4">Visit Us</h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            {/* Location */}
+            <div className="bg-white border border-stone-100 p-8 text-center shadow-sm hover:shadow-md transition-shadow duration-300">
+              <div className="w-14 h-14 bg-[#C69C6D]/10 rounded-full flex items-center justify-center mx-auto mb-5">
+                <svg className="w-6 h-6 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <h3 className="font-serif text-lg mb-2">Location</h3>
+              <p className="text-stone-500 text-sm leading-relaxed">
+                Matara, Sri Lanka
+              </p>
+            </div>
+
+            {/* Phone */}
+            <div className="bg-white border border-stone-100 p-8 text-center shadow-sm hover:shadow-md transition-shadow duration-300">
+              <div className="w-14 h-14 bg-[#C69C6D]/10 rounded-full flex items-center justify-center mx-auto mb-5">
+                <svg className="w-6 h-6 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+              </div>
+              <h3 className="font-serif text-lg mb-2">Call Us</h3>
+              <a href="tel:+94771234567" className="text-stone-500 text-sm hover:text-[#C69C6D] transition-colors">
+                +94 77 123 4567
+              </a>
+            </div>
+
+            {/* Hours */}
+            <div className="bg-white border border-stone-100 p-8 text-center shadow-sm hover:shadow-md transition-shadow duration-300">
+              <div className="w-14 h-14 bg-[#C69C6D]/10 rounded-full flex items-center justify-center mx-auto mb-5">
+                <svg className="w-6 h-6 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="font-serif text-lg mb-2">Working Hours</h3>
+              <p className="text-stone-500 text-sm leading-relaxed">
+                Mon – Sat: 9:00 AM – 8:00 PM<br />
+                Sunday: Closed
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Map Section */}
+      <section className="h-[400px] relative">
+        <iframe
+          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d63542.03706908!2d80.498!3d5.9489!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ae138d151937cd9%3A0x1d711f45fa81947d!2sMatara!5e0!3m2!1sen!2slk!4v1696000000000"
+          width="100%"
+          height="100%"
+          style={{ border: 0 }}
+          allowFullScreen
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          title="Royal Glow Salon Location – Matara"
+          className="grayscale hover:grayscale-0 transition-all duration-500"
+        />
+      </section>
+
+      {/* CTA Section */}
+      <section className="bg-[#3E2723] py-20 px-6 md:px-12 text-center">
+        <div className="max-w-3xl mx-auto">
+          <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">Ready?</p>
+          <h2 className="text-3xl md:text-4xl font-serif text-white mb-6">
+            Book Your Appointment Today
+          </h2>
+          <p className="text-stone-400 mb-10 max-w-xl mx-auto leading-relaxed">
+            Whether it&apos;s a fresh cut, a stunning color, or bridal glam — we&apos;re here to make it happen.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={() => handleBookingAction("manual")}
+              className="bg-[#C69C6D] text-white px-8 py-4 tracking-[0.15em] uppercase text-sm font-medium hover:bg-[#B38759] transition-all duration-300"
+            >
+              Book Now
+            </button>
+            <button
+              onClick={() => handleBookingAction("ai")}
+              className="border border-white/30 text-white px-8 py-4 tracking-[0.15em] uppercase text-sm font-medium backdrop-blur-sm bg-white/5 hover:bg-white/15 transition-all duration-300"
+            >
+              Consult AI Assistant
+            </button>
+          </div>
+        </div>
+      </section>
 
     </main>
   );
