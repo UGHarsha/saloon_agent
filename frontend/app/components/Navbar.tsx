@@ -43,6 +43,7 @@ export default function Navbar() {
 
   const navLinks = [
     { name: "Home", href: "/" },
+    { name: "About", href: "/#about" },
     { name: "Services", href: "/services" },
     { name: "Virtual Try-On", href: "/recolor" },
   ];
@@ -56,8 +57,8 @@ export default function Navbar() {
   return (
     <nav
       className={`fixed top-0 w-full z-50 transition-all duration-300 ${isSolid
-          ? "bg-white/80 backdrop-blur-md border-b border-stone-200 py-3 shadow-sm"
-          : "bg-transparent py-5"
+        ? "bg-white/80 backdrop-blur-md border-b border-stone-200 py-3 shadow-sm"
+        : "bg-transparent py-5"
         }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -115,8 +116,8 @@ export default function Navbar() {
                 <Link
                   href="/?book=true"
                   className={`text-xs font-semibold uppercase tracking-widest px-6 py-3 transition-all ${isSolid
-                      ? "bg-stone-900 text-white hover:bg-stone-800"
-                      : "bg-white text-stone-900 hover:bg-white/90"
+                    ? "bg-stone-900 text-white hover:bg-stone-800"
+                    : "bg-white text-stone-900 hover:bg-white/90"
                     }`}
                 >
                   Book Appointment
