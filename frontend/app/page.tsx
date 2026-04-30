@@ -481,6 +481,7 @@ function HomeContent() {
            We believe that every individual has a unique essence. Our goal is to bring that forth through precise techniques, premium products, and an environment that exudes serenity. Inspired by the best in the industry, we infuse a touch of gold and warmth into every aspect of your visit.
          </p>
       </section>
+<<<<<<< Updated upstream
       
       {/* Footer */}
       <footer className="bg-[#3E2723] text-stone-400 py-12 px-6">
@@ -488,6 +489,9 @@ function HomeContent() {
           <p>Â© {new Date().getFullYear()} Our Salon. All Rights Reserved.</p>
         </div>
       </footer>
+=======
+
+>>>>>>> Stashed changes
     </main>
   );
 }
