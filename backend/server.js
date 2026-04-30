@@ -24,6 +24,20 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 );
 
+function getRequestSupabase(accessToken) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+  if (!accessToken) return supabase;
+
+  return createClient(url, anonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  });
+}
+
 const genAI = new GoogleGenAI({
   apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || "",
 });
@@ -175,7 +189,15 @@ function extractAppointmentDetails(message, history) {
 
   const details = {};
 
-  if (lowerConversation.includes("haircut") || lowerConversation.includes("hair cut") || lowerConversation.includes("trim")) {
+  if (lowerConversation.includes("adult buzz cut") || lowerConversation.includes("buzz cut")) {
+    details.service = "Adult Buzz Cut 60 min (Rs. 5000+)";
+  } else if (lowerConversation.includes("clean up") || lowerConversation.includes("beard") || lowerConversation.includes("neck trim")) {
+    details.service = "Clean Up - Beard & Neck Trim 15 min (Rs. 2500+)";
+  } else if (lowerConversation.includes("gent hair cut") || lowerConversation.includes("gent's haircut")) {
+    details.service = "Gent hair cut 30 min (Rs. 4000+)";
+  } else if (lowerConversation.includes("women's haircut") || lowerConversation.includes("women's hair cut")) {
+    details.service = "Women's Haircut 60 min (Rs. 6000+)";
+  } else if (lowerConversation.includes("haircut") || lowerConversation.includes("hair cut") || lowerConversation.includes("trim")) {
     details.service = "Haircut & Styling";
   } else if (lowerConversation.includes("color") || lowerConversation.includes("colour") || lowerConversation.includes("highlight")) {
     details.service = "Color & Highlights";
@@ -456,13 +478,58 @@ async function runPicsartRecolor(file, naturalTargetColorHex, picsartApiKey) {
   throw new Error(`Picsart ${picsartResponse.status}: ${reason}`);
 }
 
+const PROMPT_TEMPLATE = `You are Bella, a sophisticated AI receptionist for a luxury salon in Sri Lanka. 
+You ONLY handle salon-related queries. NEVER break character.
+If asked about topics outside salon services (e.g., coding, politics, recipes, general facts), politely guide the conversation back to the salon.
+
+IMPORTANT BOOKING RULES:
+1. To book an appointment, you MUST output a JSON block wrapped in \`\`\`json ... \`\`\`.
+2. The user must provide a CATEGORY (Men/Women), a SERVICE, a DATE, and a TIME before you output the JSON.
+3. Once all details are gathered, output the final JSON in exactly this format WITHOUT asking if they want anything else:
+\`\`\`json
+{
+  "book": true,
+  "service": "[Exact Service Name]",
+  "appointmentDate": "YYYY-MM-DD",
+  "appointmentTime": "HH:MM AM/PM"
+}
+\`\`\`
+
+Here is our exact price list in LKR. Use ONLY these services and amounts when booking:
+
+MEN'S SERVICES:
+1. Adult Buzz Cut 60 min - Rs. 5000+
+2. Clean Up - Beard & Neck Trim 15 min - Rs. 2500+
+3. Gent hair cut 30 min - Rs. 4000+
+4. Color & Highlights 60 min - Rs. 10000+
+5. Consultation 15 min - Rs. 2000
+
+WOMEN'S SERVICES:
+1. Women's Haircut 60 min - Rs. 6000+
+2. Color & Highlights 120 min - Rs. 15000+
+3. Keratin Treatment 120 min - Rs. 25000+
+4. Bridal Package 180 min - Rs. 50000+
+5. Consultation 30 min - Rs. 2000
+
+When asked about prices, always ask first if they are looking for Men's or Women's services, then show the corresponding list.
+When outputting JSON, ensure the service name matches the list above perfectly.
+
+
+Conversation History:
+{HISTORY}
+
+User: {USER_INPUT}
+Bella:`;
+
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, history } = req.body;
+    const { message, history, userId, accessToken } = req.body;
     const safeMessage = typeof message === 'string' ? message.trim() : '';
     const safeHistory = Array.isArray(history)
       ? history.filter((msg) => msg && typeof msg.text === 'string' && typeof msg.role === 'string')
       : [];
+    const safeUserId = typeof userId === 'string' ? userId.trim() : '';
+    const safeAccessToken = typeof accessToken === 'string' ? accessToken.trim() : '';
 
     if (!safeMessage) {
       return res.status(400).json({ error: "Message is required." });
@@ -504,16 +571,31 @@ app.post('/api/chat', async (req, res) => {
             dateTimeString = `${dateTimeString}T12:00:00`;
         }
 
+        const missingUserIdColumn = (message) => {
+          const msg = String(message || "").toLowerCase();
+          return msg.includes("user_id") && (msg.includes("schema cache") || msg.includes("does not exist"));
+        };
+
         const bookingData = {
           customer_name: appointmentDetails.customerName || "Guest",
           service: appointmentDetails.service,
           appointment_date: new Date(dateTimeString).toISOString(),
         };
 
+        if (safeUserId) {
+          bookingData.user_id = safeUserId;
+        }
+
         console.log("Saving appointment to Supabase:", bookingData);
         console.log("Supabase config check (URL):", !!process.env.NEXT_PUBLIC_SUPABASE_URL);
 
-        const { data, error } = await supabase.from("bookings").insert([bookingData]).select();
+        const requestSupabase = getRequestSupabase(safeAccessToken);
+        let { data, error } = await requestSupabase.from("bookings").insert([bookingData]).select();
+
+        if (error && bookingData.user_id && missingUserIdColumn(error.message)) {
+          delete bookingData.user_id;
+          ({ data, error } = await requestSupabase.from("bookings").insert([bookingData]).select());
+        }
 
         if (error) {
           console.error("Supabase error:", error);
@@ -570,42 +652,7 @@ app.post('/api/chat', async (req, res) => {
           model: "gemini-2.5-flash",
           contents: contents,
           config: {
-            systemInstruction: `You are Bella, the elite AI Receptionist and Expert Hair Consultant for Royal Glow Salon. You are a real, fully-capable salon agent.
-
-**YOUR TONE & FORMAT:**
-- Be highly empathetic, professional, and friendly.
-- Provide expert, accurate advice for hair problems.
-- NEVER write long walls of text. ALWAYS use short, scannable bullet points and brief sentences.
-
-**GREETING INSTRUCTIONS:**
-When a user greets you (e.g., "hi", "hello"), introduce yourself warmly and immediately outline EXACTLY how you can help them today using a clear bulleted list:
-- 📅 **Book an Appointment** (view our specific services below)
-- 💡 **Get Expert Hair Advice** (solutions for dryness, hair fall, damage)
-- 🎨 **Style & Color Recommendations**
-
-Directly below that, provide a short, attractive list of the services they can book with you right now:
-• Haircut & Styling ($50)
-• Color & Highlights ($120+)
-• Keratin Treatment ($200)
-• Bridal Package ($300)
-• Free Profile Consultation
-
-**SALON SERVICES & KNOWLEDGE BASE:**
-1. **Haircut & Styling** ($50, 1 hr): Precision cuts, trims, blowouts.
-2. **Color & Highlights** ($120+, 2-3 hrs): Balayage, root touch-ups, full dye, highlights.
-3. **Keratin Treatment** ($200, 2 hrs): Smoothing treatment for frizzy, unmanageable hair. Lasts 3-6 months.
-4. **Bridal Package** ($300, 4 hrs): Complete hair and makeup for the bride. 
-5. **Consultation** (Free, 30 mins): In-depth hair analysis.
-
-**HANDLING HAIR PROBLEMS (EXPERT ADVICE):**
-- **Dry/Damaged/Frizzy Hair:** Recommend hydrating masks, less heat styling, and our 'Keratin Treatment'.
-- **Hair Fall/Thinning:** Recommend gentle scalp care, avoiding tight styles, and booking a 'Consultation'.
-- **Color Fade/Brassy Hair:** Recommend color-safe sulfate-free shampoos and booking 'Color & Highlights' for a gloss/toner.
-- Always provide 2-3 bullet points of actionable home-care advice AND suggest the most relevant salon service.
-
-**BOOKING FLOW:**
-- If they want to book, gently ask for: 1) Name, 2) Service, 3) Date, 4) Time.
-- Once they provide details and say "book", "yes", or "confirm", summarize and confirm it in one sentence.`,
+            systemInstruction: PROMPT_TEMPLATE,
           },
         });
 

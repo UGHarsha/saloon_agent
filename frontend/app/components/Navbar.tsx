@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { supabase } from "../../utils/supabase";
@@ -42,27 +43,45 @@ export default function Navbar() {
 
   const navLinks = [
     { name: "Home", href: "/" },
-    { name: "Services", href: "/#services" },
-    { name: "Bookings", href: "/bookings" },
+    { name: "Services", href: "/services" },
     { name: "Virtual Try-On", href: "/recolor" },
   ];
+
+  if (user) {
+    navLinks.splice(2, 0, { name: "Appointments", href: "/bookings" });
+  }
 
   const isSolid = scrolled || pathname !== "/";
 
   return (
     <nav
-      className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-        isSolid 
-          ? "bg-white/80 backdrop-blur-md border-b border-stone-200 py-3 shadow-sm" 
+      className={`fixed top-0 w-full z-50 transition-all duration-300 ${isSolid
+          ? "bg-white/80 backdrop-blur-md border-b border-stone-200 py-3 shadow-sm"
           : "bg-transparent py-5"
-      }`}
+        }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2 group z-50">
-            <Scissors className={`w-6 h-6 transition-colors ${isSolid ? "text-stone-900" : "text-white"}`} />
-            <span className={`font-serif tracking-widest text-xl transition-colors ${isSolid ? "text-stone-900" : "text-white"}`}>
+            {isSolid ? (
+              <Image
+                src="/black.png"
+                alt="Royal Glow Logo"
+                width={55}
+                height={55}
+                className="object-contain"
+              />
+            ) : (
+              <Image
+                src="/wite.png"
+                alt="Royal Glow Logo"
+                width={55}
+                height={55}
+                className="object-contain"
+              />
+            )}
+            <span className={`font-serif tracking-widest text-base transition-colors hidden sm:block ${isSolid ? "text-stone-900" : "text-white"}`}>
               ROYAL GLOW
             </span>
           </Link>
@@ -73,49 +92,45 @@ export default function Navbar() {
               <Link
                 key={link.name}
                 href={link.href}
-                className={`text-sm font-medium uppercase tracking-widest transition-colors relative group ${
-                  isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
-                }`}
+                className={`text-sm font-medium uppercase tracking-widest transition-colors relative group ${isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
+                  }`}
               >
                 {link.name}
-                <span className={`absolute -bottom-1 left-0 w-0 h-px transition-all duration-300 group-hover:w-full ${
-                  isSolid ? "bg-stone-900" : "bg-white"
-                }`}></span>
+                <span className={`absolute -bottom-1 left-0 w-0 h-px transition-all duration-300 group-hover:w-full ${isSolid ? "bg-stone-900" : "bg-white"
+                  }`}></span>
               </Link>
             ))}
-            
+
             <div className="h-4 w-px bg-stone-300/50 mx-4"></div>
-            
+
             {user ? (
-              <button
-                onClick={handleLogout}
-                className={`text-sm font-medium uppercase tracking-widest transition-colors ${
-                  isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
-                }`}
-              >
-                Logout
-              </button>
+              <>
+                <button
+                  onClick={handleLogout}
+                  className={`text-sm font-medium uppercase tracking-widest transition-colors ${isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
+                    }`}
+                >
+                  Logout
+                </button>
+                <Link
+                  href="/?book=true"
+                  className={`text-xs font-semibold uppercase tracking-widest px-6 py-3 transition-all ${isSolid
+                      ? "bg-stone-900 text-white hover:bg-stone-800"
+                      : "bg-white text-stone-900 hover:bg-white/90"
+                    }`}
+                >
+                  Book Appointment
+                </Link>
+              </>
             ) : (
               <Link
                 href="/login"
-                className={`text-sm font-medium uppercase tracking-widest transition-colors ${
-                  isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
-                }`}
+                className={`text-sm font-medium uppercase tracking-widest transition-colors ${isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
+                  }`}
               >
                 Sign In
               </Link>
             )}
-            
-            <Link
-              href="/bookings"
-              className={`text-xs font-semibold uppercase tracking-widest px-6 py-3 transition-all ${
-                isSolid 
-                  ? "bg-stone-900 text-white hover:bg-stone-800" 
-                  : "bg-white text-stone-900 hover:bg-white/90"
-              }`}
-            >
-              Book Appointment
-            </Link>
           </div>
 
           {/* Mobile menu button */}
@@ -149,18 +164,27 @@ export default function Navbar() {
                 {link.name}
               </Link>
             ))}
-            
+
             <div className="pt-4 flex flex-col space-y-4">
               {user ? (
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    toggleMenu();
-                  }}
-                  className="text-lg font-medium text-stone-600 text-left"
-                >
-                  Logout
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      toggleMenu();
+                    }}
+                    className="text-lg font-medium text-stone-600 text-left"
+                  >
+                    Logout
+                  </button>
+                  <Link
+                    href="/?book=true"
+                    onClick={toggleMenu}
+                    className="bg-stone-900 text-white text-center py-4 text-sm font-semibold uppercase tracking-widest mt-4"
+                  >
+                    Book Appointment
+                  </Link>
+                </>
               ) : (
                 <Link
                   href="/login"
@@ -170,13 +194,6 @@ export default function Navbar() {
                   Sign In
                 </Link>
               )}
-              <Link
-                href="/bookings"
-                onClick={toggleMenu}
-                className="bg-stone-900 text-white text-center py-4 text-sm font-semibold uppercase tracking-widest mt-4"
-              >
-                Book Appointment
-              </Link>
             </div>
           </motion.div>
         )}

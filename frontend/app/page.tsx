@@ -1,15 +1,28 @@
 "use client";
-import { useState, useEffect, FormEvent, KeyboardEvent } from "react";
+import { useState, useEffect, FormEvent, KeyboardEvent, Suspense } from "react";
 import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../utils/supabase";
 
-export default function Home() {
+function HomeContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [bookingView, setBookingView] = useState<"none" | "ai" | "manual">("none");
+  const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
+  const heroImages = ["/salon.jpg", "/2.jpg", "/3.jpg"];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentHeroSlide((prev) => (prev + 1) % heroImages.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [heroImages.length]);
 
   // Manual booking states
   const [manualForm, setManualForm] = useState({
     name: "",
-    service: "Haircut & Styling",
+    category: "men",
+    service: "Adult Buzz Cut 60 min (Rs. 5000+)",
     date: "",
     time: "10:00 AM",
   });
@@ -20,10 +33,41 @@ export default function Home() {
   const [chatLog, setChatLog] = useState<{ role: string; text: string }[]>([]);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (searchParams.get("book") === "true") {
+      const checkAuth = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setBookingView("manual");
+        } else {
+          router.push("/login");
+        }
+      };
+      checkAuth();
+    }
+  }, [searchParams, router]);
+
+  const handleBookingAction = async (view: "ai" | "manual") => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      router.push("/login");
+      return;
+    }
+    setBookingView(view);
+  };
+
   const handleManualSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setManualLoading(true);
     setManualSuccess(false);
+
+    // Get current user
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) {
+      alert("Please login first");
+      setManualLoading(false);
+      return;
+    }
 
     // Combine date and time
     const dateTimeString = `${manualForm.date}T${
@@ -33,19 +77,39 @@ export default function Home() {
     }`;
 
     try {
-      const { error } = await supabase.from("bookings").insert([
-        {
+      const appointmentDate = new Date(dateTimeString).toISOString();
+
+      const missingUserIdColumn = (message?: string) => {
+        const msg = (message || "").toLowerCase();
+        return msg.includes("user_id") && (msg.includes("schema cache") || msg.includes("does not exist"));
+      };
+
+      const payloadWithUser = {
+        user_id: session.user.id,
+        customer_name: manualForm.name,
+        service: manualForm.service,
+        appointment_date: appointmentDate,
+      };
+
+      let insertError = (await supabase.from("bookings").insert([payloadWithUser]).select()).error;
+
+      if (insertError && missingUserIdColumn(insertError.message)) {
+        const payloadWithoutUser = {
           customer_name: manualForm.name,
           service: manualForm.service,
-          appointment_date: new Date(dateTimeString).toISOString(),
-        },
-      ]);
-      if (error) throw error;
+          appointment_date: appointmentDate,
+        };
+        insertError = (await supabase.from("bookings").insert([payloadWithoutUser]).select()).error;
+      }
+
+      if (insertError) throw new Error(insertError.message || "Failed to book appointment");
+
       setManualSuccess(true);
       setManualForm({ ...manualForm, name: "" }); // Reset some fields
     } catch (error) {
-      console.error("Booking error:", error);
-      alert("Failed to book appointment. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Booking error:", errorMessage);
+      alert(`Failed to book appointment: ${errorMessage}`);
     } finally {
       setManualLoading(false);
     }
@@ -53,6 +117,12 @@ export default function Home() {
 
   const sendMessage = async () => {
     if (!input.trim()) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) {
+      setChatLog((prev) => [...prev, { role: "bella", text: "Please login first to book an appointment." }]);
+      return;
+    }
 
     const userMsg = { role: "user", text: input };
     setChatLog([...chatLog, userMsg]);
@@ -68,6 +138,8 @@ export default function Home() {
         body: JSON.stringify({
           message: input,
           history: chatLog,
+          userId: session.user.id,
+          accessToken: session.access_token,
         }),
       });
 
@@ -106,34 +178,54 @@ export default function Home() {
   // Close booking modal on Escape for convenience
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape") setBookingView("none");
+      if (e.key === "Escape") {
+        setBookingView("none");
+        if (searchParams.get("book") === "true") router.replace("/");
+      }
     };
     if (bookingView !== "none") window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [bookingView]);
+  }, [bookingView, searchParams, router]);
 
   return (
     <main className="min-h-screen bg-[#FDFBF7] font-sans text-[#3E2723]">
       
       {/* Booking Modal */}
-      {bookingView !== "none" && (
-        <div
-          className="fixed inset-0 z-40 bg-black/60 flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm animate-fadeIn"
-          onClick={() => setBookingView("none")}
-        >
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-4xl bg-white shadow-2xl flex flex-col h-[90vh] rounded-2xl overflow-hidden">
+        {bookingView !== "none" && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-white max-w-4xl w-full max-h-[90vh] overflow-y-auto flex flex-col shadow-2xl relative">
+              <button
+              onClick={() => {
+                setBookingView("none");
+                if (searchParams.get("book") === "true") router.replace("/");
+              }}
+              className="absolute top-4 right-4 z-10 p-2 text-stone-500 hover:text-stone-900 bg-white/50 hover:bg-white/80 backdrop-blur-md rounded-full transition-all"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="absolute top-4 left-4 z-10 md:hidden">
+              <button
+                onClick={() => {
+                  setBookingView("none");
+                  if (searchParams.get("book") === "true") router.replace("/");
+                }}
+                className="bg-white/50 backdrop-blur-md p-2 rounded-full text-stone-800"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
             {/* Header */}
             <div className="px-8 py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-100 bg-white shrink-0">
               <div>
                 <h1 className="text-2xl font-serif text-[#3E2723] tracking-wide">Book Your Visit</h1>
                 <p className="text-stone-500 text-xs mt-1 tracking-wide uppercase">Select an option below</p>
               </div>
-              <button
-                onClick={() => setBookingView("none")}
-                className="text-xs uppercase tracking-widest text-[#C69C6D] hover:text-[#3E2723] transition-colors self-start sm:self-auto border border-[#C69C6D] hover:border-[#3E2723] px-4 py-2 rounded-full"
-              >
-                Close
-              </button>
             </div>
 
             {/* Booking View Tabs */}
@@ -163,19 +255,24 @@ export default function Home() {
             {bookingView === "manual" && (
               <div className="flex-1 overflow-y-auto p-6 md:p-10">
                 {manualSuccess ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center animate-fadeIn">
+                  <div className="text-center py-12 flex flex-col items-center justify-center">
+                    <div className="text-[#C69C6D] mb-4">
+                      <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
                     <h2 className="text-2xl font-serif text-[#3E2723] mb-2">Booking Confirmed</h2>
-                    <p className="text-stone-500 text-sm max-w-sm mb-8">
-                      Your appointment has been successfully scheduled. We look forward to seeing you.
+                    <p className="text-stone-500 mb-8 max-w-sm mx-auto text-sm">
+                      We&apos;ve reserved your time. You&apos;ll receive a confirmation email shortly.
                     </p>
                     <button
                       onClick={() => {
-                        setManualSuccess(false);
                         setBookingView("none");
+                        if (searchParams.get("book") === "true") router.replace("/");
                       }}
-                      className="bg-[#C69C6D] text-white px-8 py-3 tracking-widest uppercase text-sm font-medium hover:bg-[#B38759] transition-colors"
+                      className="border border-[#C69C6D] text-[#C69C6D] hover:bg-[#C69C6D] hover:text-white px-8 py-3 tracking-widest uppercase text-xs transition-colors"
                     >
-                      Return Home
+                      Close
                     </button>
                   </div>
                 ) : (
@@ -188,14 +285,42 @@ export default function Home() {
                       </div>
                       
                       {/* Service select */}
+                      <div className="mb-4">
+                        <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Category</label>
+                        <select
+                          value={manualForm.category}
+                          onChange={(e) => setManualForm({...manualForm, category: e.target.value, service: e.target.value === 'men' ? 'Adult Buzz Cut 60 min (Rs. 5000+)' : 'Women\'s Haircut (Rs. 6000+)'})}
+                          className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif appearance-none"
+                        >
+                          <option value="men">Men</option>
+                          <option value="women">Women</option>
+                        </select>
+                      </div>
+
                       <div>
                         <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Service</label>
-                        <select value={manualForm.service} onChange={(e) => setManualForm({...manualForm, service: e.target.value})} className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif appearance-none">
-                          <option>Haircut & Styling</option>
-                          <option>Color & Highlights</option>
-                          <option>Keratin Treatment</option>
-                          <option>Bridal Package</option>
-                          <option>Consultation</option>
+                        <select
+                          value={manualForm.service}
+                          onChange={(e) => setManualForm({...manualForm, service: e.target.value})}
+                          className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif appearance-none"
+                        >
+                          {manualForm.category === "women" ? (
+                            <>
+                              <option value="Women's Haircut 60 min (Rs. 6000+)">Women&apos;s Haircut 60 min (Rs. 6000+)</option>
+                              <option value="Color & Highlights 120 min (Rs. 15000+)">Color & Highlights 120 min (Rs. 15000+)</option>
+                              <option value="Keratin Treatment 120 min (Rs. 25000+)">Keratin Treatment 120 min (Rs. 25000+)</option>
+                              <option value="Bridal Package 180 min (Rs. 50000+)">Bridal Package 180 min (Rs. 50000+)</option>
+                              <option value="Consultation 30 min (Rs. 2000)">Consultation 30 min (Rs. 2000)</option>
+                            </>
+                          ) : (
+                            <>
+                              <option value="Adult Buzz Cut 60 min (Rs. 5000+)">Adult Buzz Cut 60 min (Rs. 5000+)</option>
+                              <option value="Clean Up - Beard & Neck Trim 15 min (Rs. 2500+)">Clean Up - Beard & Neck Trim 15 min (Rs. 2500+)</option>
+                              <option value="Gent hair cut 30 min (Rs. 4000+)">Gent hair cut 30 min (Rs. 4000+)</option>
+                              <option value="Color & Highlights 60 min (Rs. 10000+)">Color & Highlights 60 min (Rs. 10000+)</option>
+                              <option value="Consultation 15 min (Rs. 2000)">Consultation 15 min (Rs. 2000)</option>
+                            </>
+                          )}
                         </select>
                       </div>
 
@@ -309,14 +434,19 @@ export default function Home() {
       {/* Hero Section */}
       <section className="relative text-white py-32 md:py-48 flex items-center justify-center min-h-screen overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <Image
-            src="/salon.jpg"
-            alt="Luxury Salon Interior"
-            fill
-            priority
-            className="object-cover object-center"
-          />
-          <div className="absolute inset-0 bg-black/40 z-10" />
+          {heroImages.map((src, idx) => (
+            <Image
+              key={src}
+              src={src}
+              alt={`Luxury Salon Interior ${idx + 1}`}
+              fill
+              priority={idx === 0}
+              className={`object-cover object-center transition-opacity duration-1000 ${
+                idx === currentHeroSlide ? "opacity-100" : "opacity-0"
+              }`}
+            />
+          ))}
+          <div className="absolute inset-0 bg-black/40 z-10 transition-opacity duration-1000" />
         </div>
 
         <div className="relative z-10 max-w-5xl mx-auto text-center px-4">
@@ -329,13 +459,13 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
             <button
-              onClick={() => setBookingView("manual")}
+              onClick={() => handleBookingAction("manual")}
               className="bg-[#C69C6D] text-white px-8 py-4 tracking-[0.15em] uppercase text-sm font-medium hover:bg-[#B38759] transition-all duration-300 shadow-lg"
             >
               Book Appointment
             </button>
             <button
-              onClick={() => setBookingView("ai")}
+              onClick={() => handleBookingAction("ai")}
               className="text-white px-8 py-4 tracking-[0.15em] uppercase text-sm font-medium border border-white/50 backdrop-blur-sm bg-white/10 hover:bg-white/20 transition-all duration-300"
             >
               Consult AI
@@ -355,9 +485,17 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-[#3E2723] text-stone-400 py-12 px-6">
         <div className="max-w-6xl mx-auto border-t border-stone-800 pt-8 text-center text-xs">
-          <p>© {new Date().getFullYear()} Our Salon. All Rights Reserved.</p>
+          <p>Â© {new Date().getFullYear()} Our Salon. All Rights Reserved.</p>
         </div>
       </footer>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HomeContent />
+    </Suspense>
   );
 }
