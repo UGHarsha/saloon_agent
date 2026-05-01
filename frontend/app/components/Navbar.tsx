@@ -46,10 +46,11 @@ export default function Navbar() {
     { name: "About", href: "/#about" },
     { name: "Services", href: "/services" },
     { name: "Virtual Try-On", href: "/recolor" },
+    { name: "Contact Us", href: "/#contact" },
   ];
 
   if (user) {
-    navLinks.splice(2, 0, { name: "Appointments", href: "/bookings" });
+    navLinks.push({ name: "Appointments", href: "/bookings" });
   }
 
   const isSolid = scrolled || pathname !== "/";
@@ -88,12 +89,12 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-7">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
-                className={`text-sm font-medium uppercase tracking-widest transition-colors relative group ${isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
+                className={`text-sm font-medium uppercase tracking-widest transition-colors relative group whitespace-nowrap ${isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
                   }`}
               >
                 {link.name}
@@ -115,7 +116,7 @@ export default function Navbar() {
                 </button>
                 <Link
                   href="/?book=true"
-                  className={`text-xs font-semibold uppercase tracking-widest px-6 py-3 transition-all ${isSolid
+                  className={`text-xs font-semibold uppercase tracking-widest px-6 py-3 transition-all whitespace-nowrap ${isSolid
                     ? "bg-stone-900 text-white hover:bg-stone-800"
                     : "bg-white text-stone-900 hover:bg-white/90"
                     }`}

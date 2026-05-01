@@ -581,7 +581,7 @@ function HomeContent() {
             Refined <br /> Elegance
           </h1>
           <p className="text-stone-50 max-w-2xl mx-auto mb-12 text-base md:text-lg font-light leading-relaxed">
-            Experience the pinnacle of modern styling and personalized beauty at our salon, inspired by the excellence of noelines.com.
+            Experience the pinnacle of modern styling and personalized beauty at Royal Glow Salon, where luxury meets artistry.
           </p>
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
             <button
@@ -600,12 +600,21 @@ function HomeContent() {
         </div>
       </section>
 
-      {/* Philosophy Section */}
-      <section className="bg-[#FDFBF7] py-24 px-6 md:px-12 text-center text-[#3E2723]">
-        <h2 className="text-3xl font-serif mb-6">Our Philosophy</h2>
-        <p className="max-w-3xl mx-auto mb-10 leading-relaxed text-stone-600">
-          We believe that every individual has a unique essence. Our goal is to bring that forth through precise techniques, premium products, and an environment that exudes serenity. Inspired by the best in the industry, we infuse a touch of gold and warmth into every aspect of your visit.
-        </p>
+      {/* Stats Bar */}
+      <section className="bg-[#3E2723] py-12 px-6 md:px-12">
+        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          {[
+            { number: "5+", label: "Years Experience" },
+            { number: "2000+", label: "Happy Clients" },
+            { number: "15+", label: "Expert Stylists" },
+            { number: "50+", label: "Services Offered" },
+          ].map((stat, idx) => (
+            <div key={idx} className="group">
+              <p className="text-3xl md:text-4xl font-serif text-[#C69C6D] mb-2 group-hover:scale-110 transition-transform duration-300">{stat.number}</p>
+              <p className="text-stone-400 text-xs uppercase tracking-[0.15em] font-semibold">{stat.label}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* ===== ABOUT US SECTIONS ===== */}
@@ -651,70 +660,104 @@ function HomeContent() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="bg-[#3E2723] py-20 md:py-28 px-6 md:px-12">
+      {/* Merged Services & Features Section */}
+      <section className="py-20 md:py-28 px-6 md:px-12 bg-white">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">Why Choose Us</p>
-            <h2 className="text-3xl md:text-4xl font-serif text-white mb-4">Our Features</h2>
-            <p className="text-stone-400 max-w-2xl mx-auto">
-              We combine technology, expertise, and luxury to deliver an unmatched salon experience.
+          {/* Section Header */}
+          <div className="text-center mb-20">
+            <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">Excellence Preferred</p>
+            <h2 className="text-4xl md:text-5xl font-serif mb-6 leading-tight">Elevated Salon Experience</h2>
+            <p className="text-stone-500 max-w-2xl mx-auto leading-relaxed">
+              We combine world-class styling techniques with modern technology and premium care to deliver an unmatched salon experience.
             </p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {aboutFeatures.map((feature, idx) => (
-              <div
-                key={idx}
-                className="bg-white/5 border border-white/10 p-8 backdrop-blur-sm hover:bg-white/10 transition-all duration-300 group"
-              >
-                <div className="text-[#C69C6D] mb-5 group-hover:scale-110 transition-transform duration-300">
-                  {feature.icon}
-                </div>
-                <h3 className="text-white font-serif text-lg mb-3">{feature.title}</h3>
-                <p className="text-stone-400 text-sm leading-relaxed">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* Services Overview */}
-      <section className="py-20 md:py-28 px-6 md:px-12 bg-[#FDFBF7]">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">What We Offer</p>
-            <h2 className="text-3xl md:text-4xl font-serif mb-4">Our Services</h2>
-            <p className="text-stone-500 max-w-2xl mx-auto">
-              A curated selection of premium hair care and styling services for every occasion.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 gap-10 max-w-4xl mx-auto">
-            {aboutServices.map((group) => (
-              <div key={group.category} className="bg-white border border-stone-100 shadow-sm p-8 hover:shadow-md transition-shadow duration-300">
-                <h3 className="text-xl font-serif text-[#3E2723] mb-6 pb-4 border-b border-stone-100 flex items-center gap-3">
-                  <span className="w-8 h-8 bg-[#C69C6D]/10 rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </span>
-                  {group.category}
-                </h3>
-                <ul className="space-y-4">
-                  {group.items.map((item) => (
-                    <li key={item} className="flex items-center gap-3 text-stone-600">
-                      <span className="w-1.5 h-1.5 bg-[#C69C6D] rounded-full shrink-0" />
-                      {item}
-                    </li>
+          <div className="grid lg:grid-cols-3 gap-12 lg:gap-16">
+            {/* Column 1 & 2: Services Highlights */}
+            <div className="lg:col-span-2 space-y-12">
+              <div className="bg-white border border-stone-100 p-10 md:p-16 shadow-sm">
+                <div className="flex flex-col md:flex-row gap-16">
+                  {aboutServices.map((group) => (
+                    <div key={group.category} className="flex-1">
+                      <h3 className="text-2xl font-serif text-[#3E2723] mb-8 pb-4 border-b border-stone-100 flex items-center gap-3">
+                        <span className="w-10 h-10 bg-[#C69C6D]/10 rounded-full flex items-center justify-center">
+                          {group.category === "Men" ? (
+                            <svg className="w-5 h-5 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                          ) : (
+                            <svg className="w-5 h-5 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                          )}
+                        </span>
+                        {group.category}
+                      </h3>
+                      <ul className="space-y-4">
+                        {group.items.map((item) => (
+                          <li key={item} className="flex items-center gap-4 text-stone-600 group cursor-default">
+                            <span className="w-2 h-2 bg-[#C69C6D] rounded-full group-hover:scale-125 transition-transform duration-300" />
+                            <span className="text-sm font-medium tracking-wide group-hover:text-[#3E2723] transition-colors">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   ))}
-                </ul>
-                <a
-                  href="/services"
-                  className="inline-block mt-6 text-[#C69C6D] text-xs uppercase tracking-widest font-semibold hover:text-[#B38759] transition-colors border-b border-[#C69C6D]/30 pb-0.5"
-                >
-                  View Full Menu →
-                </a>
+                </div>
+                <div className="mt-12 pt-8 border-t border-stone-100 text-center">
+                  <a
+                    href="/services"
+                    className="inline-flex items-center gap-4 text-[#C69C6D] text-xs font-bold uppercase tracking-[0.2em] hover:gap-6 transition-all duration-300"
+                  >
+                    View Comprehensive Menu
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </a>
+                </div>
               </div>
-            ))}
+
+              {/* Bottom horizontal features list (optional refinement) */}
+              <div className="grid grid-cols-2 gap-8">
+                {aboutFeatures.slice(0, 2).map((feature, idx) => (
+                  <div key={idx} className="flex gap-5 items-start">
+                    <div className="text-[#C69C6D] bg-white p-3 shadow-sm border border-stone-100">
+                      {feature.icon}
+                    </div>
+                    <div>
+                      <h4 className="text-[#3E2723] font-serif text-lg mb-1">{feature.title}</h4>
+                      <p className="text-stone-500 text-xs leading-relaxed">{feature.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Column 3: Why Choose Us (Features) */}
+            <div className="bg-[#3E2723] p-10 shadow-2xl relative overflow-hidden h-full flex flex-col justify-center">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#C69C6D]/10 rounded-bl-full -mr-16 -mt-16"></div>
+              <div className="relative z-10 space-y-12">
+                <div>
+                  <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-[10px] mb-3 font-semibold">The Standard</p>
+                  <h3 className="text-2xl md:text-3xl font-serif text-white leading-tight">Expertise & Innovation</h3>
+                </div>
+
+                <div className="space-y-10">
+                  {aboutFeatures.slice(2, 6).map((feature, idx) => (
+                    <div key={idx} className="flex gap-5 group">
+                      <div className="text-[#C69C6D] group-hover:scale-110 transition-transform duration-300 shrink-0">
+                        {/* Slightly smaller icons for sidebar */}
+                        {feature.icon}
+                      </div>
+                      <div>
+                        <h5 className="text-white font-serif text-base mb-1">{feature.title}</h5>
+                        <p className="text-stone-400 text-xs leading-relaxed">{feature.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -802,52 +845,56 @@ function HomeContent() {
         </div>
       )}
 
-      {/* Salon Details / Contact Section */}
-      <section className="py-20 md:py-28 px-6 md:px-12 bg-[#FDFBF7]">
+      {/* Contact Section */}
+      <section id="contact" className="py-24 md:py-32 px-6 md:px-12 bg-[#FDFBF7]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">Get in Touch</p>
-            <h2 className="text-3xl md:text-4xl font-serif mb-4">Visit Us</h2>
+            <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">Connect</p>
+            <h2 className="text-4xl md:text-5xl font-serif mb-6 leading-tight">Contact Us</h2>
+            <p className="text-stone-500 max-w-2xl mx-auto leading-relaxed">
+              We&apos;re here to help you achieve your beauty goals. Visit us at our salon or give us a call to book your transformation.
+            </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {/* Location */}
-            <div className="bg-white border border-stone-100 p-8 text-center shadow-sm hover:shadow-md transition-shadow duration-300">
-              <div className="w-14 h-14 bg-[#C69C6D]/10 rounded-full flex items-center justify-center mx-auto mb-5">
-                <svg className="w-6 h-6 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="bg-white border border-stone-100 p-10 text-center shadow-sm hover:shadow-md transition-all duration-300 group">
+              <div className="w-16 h-16 bg-[#C69C6D]/10 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-[#C69C6D] group-hover:text-white transition-colors duration-300">
+                <svg className="w-7 h-7 text-[#C69C6D] group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </div>
-              <h3 className="font-serif text-lg mb-2">Location</h3>
+              <h3 className="font-serif text-xl mb-3">Visit Us</h3>
               <p className="text-stone-500 text-sm leading-relaxed">
-                Matara, Sri Lanka
+                Beach Road, Matara<br />
+                Sri Lanka
               </p>
             </div>
 
             {/* Phone */}
-            <div className="bg-white border border-stone-100 p-8 text-center shadow-sm hover:shadow-md transition-shadow duration-300">
-              <div className="w-14 h-14 bg-[#C69C6D]/10 rounded-full flex items-center justify-center mx-auto mb-5">
-                <svg className="w-6 h-6 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="bg-white border border-stone-100 p-10 text-center shadow-sm hover:shadow-md transition-all duration-300 group">
+              <div className="w-16 h-16 bg-[#C69C6D]/10 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-[#C69C6D] group-hover:text-white transition-colors duration-300">
+                <svg className="w-7 h-7 text-[#C69C6D] group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                 </svg>
               </div>
-              <h3 className="font-serif text-lg mb-2">Call Us</h3>
-              <a href="tel:+94771234567" className="text-stone-500 text-sm hover:text-[#C69C6D] transition-colors">
-                +94 77 123 4567
-              </a>
+              <h3 className="font-serif text-xl mb-3">Call Us</h3>
+              <p className="text-stone-500 text-sm leading-relaxed mb-1">+94 41 222 3456</p>
+              <p className="text-stone-500 text-sm leading-relaxed">+94 77 123 4567</p>
             </div>
 
             {/* Hours */}
-            <div className="bg-white border border-stone-100 p-8 text-center shadow-sm hover:shadow-md transition-shadow duration-300">
-              <div className="w-14 h-14 bg-[#C69C6D]/10 rounded-full flex items-center justify-center mx-auto mb-5">
-                <svg className="w-6 h-6 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="bg-white border border-stone-100 p-10 text-center shadow-sm hover:shadow-md transition-all duration-300 group">
+              <div className="w-16 h-16 bg-[#C69C6D]/10 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-[#C69C6D] group-hover:text-white transition-colors duration-300">
+                <svg className="w-7 h-7 text-[#C69C6D] group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h3 className="font-serif text-lg mb-2">Working Hours</h3>
+              <h3 className="font-serif text-xl mb-3">Working Hours</h3>
               <p className="text-stone-500 text-sm leading-relaxed">
                 Mon – Sat: 9:00 AM – 8:00 PM<br />
-                Sunday: Closed
+                Sunday: 10:00 AM – 4:00 PM
               </p>
             </div>
           </div>
