@@ -104,12 +104,7 @@ export default function ServicesPage() {
                 </Link>
             </section>
 
-            {/* Footer */}
-            <footer className="bg-[#3E2723] text-stone-400 py-12 px-6">
-                <div className="max-w-6xl mx-auto text-center text-xs">
-                    <p>© {new Date().getFullYear()} Our Salon. All Rights Reserved.</p>
-                </div>
-            </footer>
+
         </main>
     );
 }
