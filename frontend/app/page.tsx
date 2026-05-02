@@ -3,19 +3,22 @@ import { useState, useEffect, FormEvent, KeyboardEvent, Suspense } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../utils/supabase";
+import Reviews from "./components/Reviews";
+import { motion, AnimatePresence } from "framer-motion";
 
 const lookBookImages = [
   { src: "/customers/client-doing-hair-cut-barber-shop-salon_1303-20710.jpg", alt: "Barber shop styling" },
-  { src: "/customers/female-hairdresser-beauty-salon_1303-27755.jpg", alt: "Beauty salon look" },
+  { src: "/customers/female-hairdresser.jpg", alt: "Beauty salon look" },
   { src: "/customers/female-hairdresser-making-hairstyle-blonde-woman-beauty-salon_176420-4458.jpg", alt: "Blonde hairstyle" },
   { src: "/customers/female-hairdresser-making-hairstyle-redhead-woman-beauty-salon_176420-4476.jpg", alt: "Redhead hairstyle" },
   { src: "/customers/female-hairdresser-making-hairstyle-redhead-woman-beauty-salon_176420-4482.jpg", alt: "Elegant redhead styling" },
   { src: "/customers/female-hairdresser-using-hairbrush-hair-dryer_329181-1929.jpg", alt: "Professional blow dry" },
-  { src: "/customers/pretty-cute-young-woman-with-long-brunette-hair-smiling-camera-hairdresser-salon_197531-3664.jpg", alt: "Happy client" },
+  { src: "/customers/pretty-cute-young.jpg", alt: "Happy client" },
   { src: "/customers/professional-girl-hairdresser-makes-client-haircut-girl-is-sitting-mask-beauty-salon_343596-4444.jpg", alt: "Professional haircut" },
   { src: "/customers/woman-washing-head-hairsalon_1157-27179.jpg", alt: "Hair wash treatment" },
   { src: "/customers/young-beautiful-bride-is-standing-summer-park-with-bouquet-flowers.jpg", alt: "Bridal styling" },
-  { src: "/customers/young-man-barbershop-trimming-hair_1303-26254.jpg", alt: "Men's grooming" },
+  { src: "/customers/young-man-barbershop-trimming.jpg", alt: "Men's grooming" },
+  { src: "/1.jpg", alt: "Master Artistry" },
 ];
 
 const aboutFeatures = [
@@ -60,9 +63,8 @@ function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [bookingView, setBookingView] = useState<"none" | "ai" | "manual">("none");
-  const [selectedImage, setSelectedImage] = useState<number | null>(null);
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
-  const heroImages = ["/salon.jpg", "/2.jpg", "/3.jpg"];
+  const heroImages = ["/1.jpg", "/2.jpg", "/3.jpg"];
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -91,24 +93,23 @@ function HomeContent() {
         return;
       }
 
-      const startOfDay = new Date(`${manualForm.date}T00:00:00`).toISOString();
-      const endOfDay = new Date(`${manualForm.date}T23:59:59`).toISOString();
+      try {
+        const response = await fetch(`http://localhost:5000/api/booked-slots?date=${manualForm.date}`);
+        if (!response.ok) throw new Error("Failed to fetch slots");
+        const data = await response.json();
 
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('appointment_date, service')
-        .gte('appointment_date', startOfDay)
-        .lte('appointment_date', endOfDay);
-
-      if (!error && data) {
-        const bookingsList = data.map(b => {
-          const date = new Date(b.appointment_date);
-          const startMin = date.getHours() * 60 + date.getMinutes();
-          const p = b.service ? b.service.match(/(\d+)\s*min/) : null;
-          const dur = p ? parseInt(p[1]) : 60;
-          return { start: startMin, end: startMin + dur };
-        });
-        setBookingsData(bookingsList);
+        if (data) {
+          const bookingsList = data.map((b: any) => {
+            const date = new Date(b.appointment_date);
+            const startMin = date.getHours() * 60 + date.getMinutes();
+            const p = b.service ? b.service.match(/(\d+)\s*min/) : null;
+            const dur = p ? parseInt(p[1]) : 60;
+            return { start: startMin, end: startMin + dur };
+          });
+          setBookingsData(bookingsList);
+        }
+      } catch (err) {
+        console.error("Error fetching booked times:", err);
       }
     }
     fetchBookedTimes();
@@ -205,37 +206,32 @@ function HomeContent() {
     try {
       const appointmentDate = new Date(dateTimeString).toISOString();
 
-      const missingUserIdColumn = (message?: string) => {
-        const msg = (message || "").toLowerCase();
-        return msg.includes("user_id") && (msg.includes("schema cache") || msg.includes("does not exist"));
-      };
-
-      const payloadWithUser = {
-        user_id: session.user.id,
-        customer_name: manualForm.name,
-        service: manualForm.service,
-        appointment_date: appointmentDate,
-      };
-
-      let insertError = (await supabase.from("bookings").insert([payloadWithUser]).select()).error;
-
-      if (insertError && missingUserIdColumn(insertError.message)) {
-        const payloadWithoutUser = {
-          customer_name: manualForm.name,
+      const response = await fetch("http://localhost:5000/api/book-manual", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: manualForm.name,
           service: manualForm.service,
-          appointment_date: appointmentDate,
-        };
-        insertError = (await supabase.from("bookings").insert([payloadWithoutUser]).select()).error;
-      }
+          date: appointmentDate,
+          userId: session.user.id,
+          accessToken: session.access_token,
+        }),
+      });
 
-      if (insertError) throw new Error(insertError.message || "Failed to book appointment");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to book appointment");
+      }
 
       setManualSuccess(true);
       setManualForm({ ...manualForm, name: "" }); // Reset some fields
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error("Booking error:", errorMessage);
-      alert(`Failed to book appointment: ${errorMessage}`);
+      alert(`Booking failed: ${errorMessage}`);
     } finally {
       setManualLoading(false);
     }
@@ -318,286 +314,413 @@ function HomeContent() {
 
       {/* Booking Modal */}
       {bookingView !== "none" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white max-w-4xl w-full max-h-[90vh] overflow-y-auto flex flex-col shadow-2xl relative">
-            <button
-              onClick={() => {
-                setBookingView("none");
-                if (searchParams.get("book") === "true") router.replace("/");
-              }}
-              className="absolute top-4 right-4 z-10 p-2 text-stone-500 hover:text-stone-900 bg-white/50 hover:bg-white/80 backdrop-blur-md rounded-full transition-all"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#3E2723]/40 backdrop-blur-md p-4">
+          <div className="bg-white max-w-5xl w-full h-[90vh] md:h-[80vh] overflow-hidden flex flex-col md:flex-row shadow-2xl rounded-2xl border border-stone-100">
 
-            <div className="absolute top-4 left-4 z-10 md:hidden">
+            {/* Sidebar / Info Panel (Desktop) */}
+            <div className="hidden md:flex w-1/3 bg-[#3E2723] p-10 flex-col justify-between text-white relative">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#C69C6D]/10 rounded-bl-full"></div>
+              <div>
+                <h2 className="text-3xl font-serif mb-6 leading-tight">Reserved <br /> Excellence</h2>
+                <p className="text-stone-300 text-sm leading-relaxed mb-8">
+                  Whether you prefer the precision of our AI assistant or the direct control of manual booking, your luxury experience starts here.
+                </p>
+                <div className="space-y-6">
+                  <div className="flex items-center gap-4 text-stone-200">
+                    <div className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center shrink-0">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest font-bold">Duration</p>
+                      <p className="text-sm font-serif">30 - 180 Minutes</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-stone-200">
+                    <div className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center shrink-0">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest font-bold">Location</p>
+                      <p className="text-sm font-serif">Main St, Matara</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="pt-8 border-t border-white/10">
+                <p className="text-[10px] uppercase tracking-widest text-stone-400 font-bold mb-2">Need Help?</p>
+                <p className="text-xs text-stone-300">+94 41 123 4567</p>
+              </div>
+            </div>
+
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col bg-[#FDFBF7] relative">
               <button
                 onClick={() => {
                   setBookingView("none");
-                  if (searchParams.get("book") === "true") router.replace("/");
+                  if (searchParams.get("book") === "true" || searchParams.get("book") === "ai") router.replace("/");
                 }}
-                className="bg-white/50 backdrop-blur-md p-2 rounded-full text-stone-800"
+                className="absolute top-6 right-6 z-30 p-2 text-stone-400 hover:text-[#3E2723] hover:bg-white rounded-full transition-all shadow-sm"
               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-            </div>
 
-            {/* Header */}
-            <div className="px-8 py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-100 bg-white shrink-0">
-              <div>
-                <h1 className="text-2xl font-serif text-[#3E2723] tracking-wide">Book Your Visit</h1>
-                <p className="text-stone-500 text-xs mt-1 tracking-wide uppercase">Select an option below</p>
+              {/* Tabs */}
+              <div className="flex border-b border-stone-200 bg-white">
+                <button
+                  onClick={() => setBookingView("manual")}
+                  className={`flex-1 py-6 text-xs font-bold tracking-[0.2em] uppercase transition-all relative ${bookingView === "manual"
+                    ? "text-[#3E2723]"
+                    : "text-stone-400 hover:text-stone-600"
+                    }`}
+                >
+                  Manual Booking
+                  {bookingView === "manual" && <div className="absolute bottom-0 left-0 w-full h-1 bg-[#C69C6D]"></div>}
+                </button>
+                <button
+                  onClick={() => setBookingView("ai")}
+                  className={`flex-1 py-6 text-xs font-bold tracking-[0.2em] uppercase transition-all relative ${bookingView === "ai"
+                    ? "text-[#3E2723]"
+                    : "text-stone-400 hover:text-stone-600"
+                    }`}
+                >
+                  AI Assistant
+                  {bookingView === "ai" && <div className="absolute bottom-0 left-0 w-full h-1 bg-[#C69C6D]"></div>}
+                </button>
               </div>
-            </div>
 
-            {/* Booking View Tabs */}
-            <div className="flex bg-stone-50/50 p-2 gap-2 border-b border-stone-100 shrink-0">
-              <button
-                onClick={() => setBookingView("manual")}
-                className={`flex-1 py-3 text-xs font-semibold tracking-widest uppercase transition-all rounded-sm ${bookingView === "manual"
-                  ? "bg-[#C69C6D] text-white shadow-md mx-1"
-                  : "bg-transparent text-stone-500 hover:text-stone-800 hover:bg-white"
-                  }`}
-              >
-                Manual Booking
-              </button>
-              <button
-                onClick={() => setBookingView("ai")}
-                className={`flex-1 py-3 text-xs font-semibold tracking-widest uppercase transition-all rounded-sm ${bookingView === "ai"
-                  ? "bg-[#C69C6D] text-white shadow-md mx-1"
-                  : "bg-transparent text-stone-500 hover:text-stone-800 hover:bg-white"
-                  }`}
-              >
-                AI Assistant
-              </button>
-            </div>
+              {/* Views */}
+              <div className="flex-1 overflow-y-auto w-full">
+                {bookingView === "manual" && (
+                  <div className="p-8 md:p-12 animate-fadeIn">
+                    {manualSuccess ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center py-20">
+                        <div className="w-20 h-20 bg-green-50 text-green-500 rounded-full flex items-center justify-center mb-6 shadow-sm">
+                          <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                        <h3 className="text-2xl font-serif text-[#3E2723] mb-4">Reservation Confirmed</h3>
+                        <p className="text-stone-500 text-sm max-w-sm mb-10 leading-relaxed">
+                          Your appointment has been successfully booked. We have sent a confirmation to your registered email.
+                        </p>
+                        <button
+                          onClick={() => {
+                            setBookingView("none");
+                            if (searchParams.get("book") === "true") router.replace("/");
+                          }}
+                          className="bg-[#3E2723] text-white px-10 py-4 uppercase tracking-[0.2em] text-xs font-bold hover:bg-[#5D3A32] transition-all shadow-lg"
+                        >
+                          Return Home
+                        </button>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleManualSubmit} className="max-w-2xl mx-auto space-y-10">
+                        <div className="grid md:grid-cols-2 gap-10">
+                          <div className="space-y-2">
+                            <label className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-black">Full Name</label>
+                            <input
+                              type="text"
+                              required
+                              value={manualForm.name}
+                              onChange={(e) => setManualForm({ ...manualForm, name: e.target.value })}
+                              className="w-full bg-white border border-stone-200 px-5 py-4 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] focus:ring-1 focus:ring-[#C69C6D] transition-all font-serif placeholder-stone-300 rounded-lg shadow-sm"
+                              placeholder="Your full name"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-black">Category</label>
+                            <div className="relative">
+                              <select
+                                value={manualForm.category}
+                                onChange={(e) => setManualForm({ ...manualForm, category: e.target.value, service: e.target.value === 'men' ? 'Adult Buzz Cut 60 min (Rs. 5000+)' : 'Women\'s Haircut (Rs. 6000+)' })}
+                                className="w-full bg-white border border-stone-200 px-5 py-4 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] focus:ring-1 focus:ring-[#C69C6D] transition-all font-serif appearance-none rounded-lg shadow-sm"
+                              >
+                                <option value="men">Men's Styling</option>
+                                <option value="women">Women's Styling</option>
+                              </select>
+                              <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-stone-400">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
 
-            {bookingView === "manual" && (
-              <div className="flex-1 overflow-y-auto p-6 md:p-10">
-                {manualSuccess ? (
-                  <div className="text-center py-12 flex flex-col items-center justify-center">
-                    <div className="text-[#C69C6D] mb-4">
-                      <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <h2 className="text-2xl font-serif text-[#3E2723] mb-2">Booking Confirmed</h2>
-                    <p className="text-stone-500 mb-8 max-w-sm mx-auto text-sm">
-                      We&apos;ve reserved your time. You&apos;ll receive a confirmation email shortly.
-                    </p>
-                    <button
-                      onClick={() => {
-                        setBookingView("none");
-                        if (searchParams.get("book") === "true") router.replace("/");
-                      }}
-                      className="border border-[#C69C6D] text-[#C69C6D] hover:bg-[#C69C6D] hover:text-white px-8 py-3 tracking-widest uppercase text-xs transition-colors"
-                    >
-                      Close
-                    </button>
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-black">Select Treatment</label>
+                          <div className="relative">
+                            <select
+                              value={manualForm.service}
+                              onChange={(e) => setManualForm({ ...manualForm, service: e.target.value })}
+                              className="w-full bg-white border border-stone-200 px-5 py-4 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] focus:ring-1 focus:ring-[#C69C6D] transition-all font-serif appearance-none rounded-lg shadow-sm"
+                            >
+                              {manualForm.category === "women" ? (
+                                <>
+                                  <option value="Women's Haircut 60 min (Rs. 6000+)">Women's Haircut — 60 min (Rs. 6000+)</option>
+                                  <option value="Color & Highlights 120 min (Rs. 15000+)">Color & Highlights — 120 min (Rs. 15000+)</option>
+                                  <option value="Keratin Treatment 120 min (Rs. 25000+)">Keratin Treatment — 120 min (Rs. 25000+)</option>
+                                  <option value="Bridal Package 180 min (Rs. 50000+)">Bridal Package — 180 min (Rs. 50000+)</option>
+                                  <option value="Consultation 30 min (Rs. 2000)">Consultation — 30 min (Rs. 2000)</option>
+                                </>
+                              ) : (
+                                <>
+                                  <option value="Adult Buzz Cut 60 min (Rs. 5000+)">Adult Buzz Cut — 60 min (Rs. 5000+)</option>
+                                  <option value="Clean Up - Beard & Neck Trim 15 min (Rs. 2500+)">Clean Up — 15 min (Rs. 2500+)</option>
+                                  <option value="Gent hair cut 30 min (Rs. 4000+)">Gent Haircut — 30 min (Rs. 4000+)</option>
+                                  <option value="Color & Highlights 60 min (Rs. 10000+)">Color & Highlights — 60 min (Rs. 10000+)</option>
+                                  <option value="Consultation 15 min (Rs. 2000)">Consultation — 15 min (Rs. 2000)</option>
+                                </>
+                              )}
+                            </select>
+                            <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-stone-400">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-10">
+                          <div className="space-y-2">
+                            <label className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-black">Date</label>
+                            <input
+                              type="date"
+                              min={new Date().toLocaleDateString('en-CA')}
+                              required
+                              value={manualForm.date}
+                              onChange={(e) => setManualForm({ ...manualForm, date: e.target.value })}
+                              className="w-full bg-white border border-stone-200 px-5 py-4 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] focus:ring-1 focus:ring-[#C69C6D] transition-all font-serif rounded-lg shadow-sm"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-black">Preferred Time</label>
+                            <div className="relative">
+                              <select
+                                value={manualForm.time}
+                                onChange={(e) => setManualForm({ ...manualForm, time: e.target.value })}
+                                className="w-full bg-white border border-stone-200 px-5 py-4 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] focus:ring-1 focus:ring-[#C69C6D] transition-all font-serif appearance-none rounded-lg shadow-sm"
+                              >
+                                {availableTimes.length > 0 ? (
+                                  availableTimes.map(time => (
+                                    <option key={time} value={time}>{time}</option>
+                                  ))
+                                ) : (
+                                  <option value="" disabled>No slots available</option>
+                                )}
+                              </select>
+                              <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-stone-400">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={manualLoading || !manualForm.time}
+                          className="w-full bg-[#C69C6D] text-white py-5 mt-4 uppercase tracking-[0.3em] text-xs font-black hover:bg-[#B38759] transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-3 rounded-lg"
+                        >
+                          {manualLoading ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                              Processing
+                            </>
+                          ) : !manualForm.time ? "No Slots Available" : "Confirm Booking"}
+                        </button>
+                      </form>
+                    )}
                   </div>
-                ) : (
-                  <div className="max-w-md mx-auto">
-                    <form onSubmit={handleManualSubmit} className="space-y-8 bg-white p-8 md:p-12 shadow-sm border border-stone-100 relative">
-                      {/* Name input */}
+                )}
+
+                {bookingView === "ai" && (
+                  <div className="h-full flex flex-col bg-white overflow-hidden animate-fadeIn">
+                    {/* Chat Header (Mobile only) */}
+                    <div className="md:hidden p-4 bg-[#3E2723] text-white flex items-center gap-3">
+                      <div className="w-10 h-10 bg-[#C69C6D] rounded-full flex items-center justify-center text-xl shadow-inner">✨</div>
                       <div>
-                        <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Full Name</label>
-                        <input type="text" required value={manualForm.name} onChange={(e) => setManualForm({ ...manualForm, name: e.target.value })} className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif placeholder-stone-300" placeholder="Jane Doe" />
+                        <p className="text-xs font-bold tracking-widest uppercase text-stone-300">AI Assistant</p>
+                        <p className="text-sm font-serif">Bella</p>
                       </div>
+                    </div>
 
-                      {/* Service select */}
-                      <div className="mb-4">
-                        <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Category</label>
-                        <select
-                          value={manualForm.category}
-                          onChange={(e) => setManualForm({ ...manualForm, category: e.target.value, service: e.target.value === 'men' ? 'Adult Buzz Cut 60 min (Rs. 5000+)' : 'Women\'s Haircut (Rs. 6000+)' })}
-                          className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif appearance-none"
-                        >
-                          <option value="men">Men</option>
-                          <option value="women">Women</option>
-                        </select>
-                      </div>
+                    {/* Chat Messages */}
+                    <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 scroll-smooth">
+                      {chatLog.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-center animate-fadeIn py-10">
+                          <div className="w-20 h-20 bg-[#FDFBF7] rounded-full flex items-center justify-center mb-8 shadow-sm border border-stone-100 text-3xl">
+                            ✨
+                          </div>
+                          <h3 className="text-2xl font-serif text-[#3E2723] mb-4">Hello, I'm Bella</h3>
+                          <p className="text-stone-500 text-sm max-w-xs leading-relaxed mb-10">
+                            Your luxury concierge. I can book your visit, recommend styles, or answer any questions about our services.
+                          </p>
 
-                      <div>
-                        <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Service</label>
-                        <select
-                          value={manualForm.service}
-                          onChange={(e) => setManualForm({ ...manualForm, service: e.target.value })}
-                          className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif appearance-none"
-                        >
-                          {manualForm.category === "women" ? (
-                            <>
-                              <option value="Women's Haircut 60 min (Rs. 6000+)">Women&apos;s Haircut 60 min (Rs. 6000+)</option>
-                              <option value="Color & Highlights 120 min (Rs. 15000+)">Color & Highlights 120 min (Rs. 15000+)</option>
-                              <option value="Keratin Treatment 120 min (Rs. 25000+)">Keratin Treatment 120 min (Rs. 25000+)</option>
-                              <option value="Bridal Package 180 min (Rs. 50000+)">Bridal Package 180 min (Rs. 50000+)</option>
-                              <option value="Consultation 30 min (Rs. 2000)">Consultation 30 min (Rs. 2000)</option>
-                            </>
-                          ) : (
-                            <>
-                              <option value="Adult Buzz Cut 60 min (Rs. 5000+)">Adult Buzz Cut 60 min (Rs. 5000+)</option>
-                              <option value="Clean Up - Beard & Neck Trim 15 min (Rs. 2500+)">Clean Up - Beard & Neck Trim 15 min (Rs. 2500+)</option>
-                              <option value="Gent hair cut 30 min (Rs. 4000+)">Gent hair cut 30 min (Rs. 4000+)</option>
-                              <option value="Color & Highlights 60 min (Rs. 10000+)">Color & Highlights 60 min (Rs. 10000+)</option>
-                              <option value="Consultation 15 min (Rs. 2000)">Consultation 15 min (Rs. 2000)</option>
-                            </>
-                          )}
-                        </select>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-6">
-                        <div>
-                          <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Date</label>
-                          <input type="date" min={new Date().toLocaleDateString('en-CA')} required value={manualForm.date} onChange={(e) => setManualForm({ ...manualForm, date: e.target.value })} className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif" />
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-md">
+                            <button
+                              onClick={() => {
+                                setInput("Book a haircut for tomorrow morning");
+                                // We need to trigger the send after setting input, but since it's a state change 
+                                // it's better to just call sendMessage with the string if possible, or use a ref.
+                                // For now, let the user click send or just provide the text.
+                              }}
+                              className="p-4 text-left bg-white border border-stone-200 rounded-xl hover:border-[#C69C6D] hover:bg-stone-50 transition-all group"
+                            >
+                              <p className="text-[10px] uppercase tracking-widest text-[#C69C6D] font-bold mb-1">Quick Booking</p>
+                              <p className="text-xs text-stone-600 font-serif group-hover:text-[#3E2723]">"Book a haircut for tomorrow morning"</p>
+                            </button>
+                            <button
+                              onClick={() => setInput("What services do you offer for women?")}
+                              className="p-4 text-left bg-white border border-stone-200 rounded-xl hover:border-[#C69C6D] hover:bg-stone-50 transition-all group"
+                            >
+                              <p className="text-[10px] uppercase tracking-widest text-[#C69C6D] font-bold mb-1">Services</p>
+                              <p className="text-xs text-stone-600 font-serif group-hover:text-[#3E2723]">"What services do you offer for women?"</p>
+                            </button>
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-stone-500 text-xs uppercase tracking-widest mb-3 font-semibold">Time</label>
-                          <select value={manualForm.time} onChange={(e) => setManualForm({ ...manualForm, time: e.target.value })} className="w-full bg-transparent border-b-2 border-stone-100 px-0 py-3 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] transition-colors font-serif appearance-none">
-                            {availableTimes.length > 0 ? (
-                              availableTimes.map(time => (
-                                <option key={time} value={time}>{time}</option>
-                              ))
-                            ) : (
-                              <option value="" disabled>No slots available</option>
-                            )}
-                          </select>
+                      ) : (
+                        chatLog.map((msg, i) => (
+                          <div
+                            key={i}
+                            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-fadeIn`}
+                          >
+                            <div className={`flex gap-4 max-w-[85%] ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
+                              {msg.role === "bella" && (
+                                <div className="w-8 h-8 rounded-full bg-[#C69C6D] flex items-center justify-center text-white text-xs shrink-0 mt-1 shadow-sm">✨</div>
+                              )}
+                              <div
+                                className={`px-6 py-4 rounded-2xl shadow-sm leading-relaxed text-sm ${msg.role === "user"
+                                  ? "bg-[#3E2723] text-white rounded-tr-none"
+                                  : "bg-[#F5F1E8] text-[#3E2723] rounded-tl-none border border-stone-100"
+                                  }`}
+                              >
+                                {msg.text}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                      {loading && (
+                        <div className="flex justify-start animate-fadeIn">
+                          <div className="flex gap-4 max-w-[85%]">
+                            <div className="w-8 h-8 rounded-full bg-[#C69C6D] flex items-center justify-center text-white text-xs shrink-0 mt-1 shadow-sm animate-pulse">✨</div>
+                            <div className="bg-[#F5F1E8] px-6 py-4 rounded-2xl rounded-tl-none border border-stone-100 shadow-sm">
+                              <div className="flex gap-1.5 items-center h-5">
+                                <div className="w-1.5 h-1.5 bg-[#C69C6D] rounded-full animate-bounce"></div>
+                                <div className="w-1.5 h-1.5 bg-[#C69C6D] rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                                <div className="w-1.5 h-1.5 bg-[#C69C6D] rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      )}
+                    </div>
 
-                      <button type="submit" disabled={manualLoading || !manualForm.time} className="w-full bg-[#C69C6D] text-white py-4 mt-8 uppercase tracking-widest text-sm font-semibold hover:bg-[#B38759] transition-colors disabled:opacity-50">
-                        {manualLoading ? "Processing..." : !manualForm.time ? "No Slots Available" : "Confirm Booking"}
-                      </button>
-                    </form>
+                    {/* Chat Input */}
+                    <div className="p-6 md:p-10 bg-white border-t border-stone-100">
+                      <div className="max-w-3xl mx-auto flex items-center gap-4 bg-[#FDFBF7] border border-stone-200 rounded-2xl p-2 pl-6 focus-within:border-[#C69C6D] focus-within:ring-1 focus-within:ring-[#C69C6D] transition-all shadow-sm">
+                        <input
+                          className="flex-1 bg-transparent border-none focus:outline-none py-3 text-stone-800 placeholder-stone-400 text-sm font-serif"
+                          value={input}
+                          onChange={(e) => setInput(e.target.value)}
+                          onKeyDown={handleKeyPress}
+                          placeholder="Tell Bella what you're looking for..."
+                          disabled={loading}
+                        />
+                        <button
+                          onClick={sendMessage}
+                          disabled={loading || !input.trim()}
+                          className="bg-[#3E2723] disabled:bg-stone-300 text-white rounded-xl p-3.5 transition-all hover:bg-[#C69C6D] active:scale-95 shadow-md flex items-center justify-center"
+                          aria-label="Send message"
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                          </svg>
+                        </button>
+                      </div>
+                      <p className="text-center text-[10px] text-stone-400 mt-4 uppercase tracking-[0.1em]">Bella AI can schedule, reschedule and answer questions about Royale Glow Salon</p>
+                    </div>
                   </div>
                 )}
               </div>
-            )}
-
-            {bookingView === "ai" && (
-              <div className="flex-1 flex flex-col h-full bg-stone-50 relative">
-                <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] pointer-events-none mix-blend-overlay"></div>
-
-                {/* Chat Container */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-transparent z-10 w-full">
-                  {chatLog.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center animate-fadeIn">
-                      <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-6 shadow-sm border border-stone-100">
-                        <span className="text-2xl">✨</span>
-                      </div>
-                      <h2 className="text-xl font-serif text-[#3E2723] mb-2">Your AI Assistant</h2>
-                      <p className="text-stone-500 text-sm max-w-sm leading-relaxed">
-                        I can help you schedule your appointment or answer questions. Try asking: &quot;Book a haircut for tomorrow at 2pm.&quot;
-                      </p>
-                    </div>
-                  ) : (
-                    chatLog.map((msg, i) => (
-                      <div
-                        key={i}
-                        className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-fadeIn`}
-                      >
-                        <div
-                          className={`max-w-[85%] px-5 py-4 rounded-2xl transition-all duration-300 shadow-sm ${msg.role === "user"
-                            ? "bg-[#C69C6D] text-white rounded-br-sm"
-                            : "bg-white border border-stone-200 text-[#3E2723] rounded-bl-sm"
-                            }`}
-                        >
-                          {msg.role === "bella" && (
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-[10px] uppercase tracking-widest text-[#C69C6D] font-semibold">Bella</span>
-                            </div>
-                          )}
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                  {loading && (
-                    <div className="flex justify-start animate-fadeIn">
-                      <div className="bg-white border border-stone-200 text-stone-800 px-5 py-4 rounded-2xl rounded-bl-sm shadow-sm">
-                        <div className="flex gap-1.5 items-center h-5">
-                          <div className="w-2 h-2 bg-stone-300 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-stone-300 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
-                          <div className="w-2 h-2 bg-stone-300 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Input Area */}
-                <div className="p-4 md:p-6 bg-white border-t border-stone-100 z-10 w-full shrink-0">
-                  <div className="flex items-center gap-3 bg-stone-50 p-2 rounded-full border border-stone-200 focus-within:border-[#C69C6D] focus-within:ring-1 focus-within:ring-[#C69C6D] transition-all max-w-4xl mx-auto">
-                    <input
-                      className="flex-1 bg-transparent border-none focus:outline-none px-4 py-2 text-stone-800 placeholder-stone-400 text-sm"
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={handleKeyPress}
-                      placeholder="Message the AI agent..."
-                      disabled={loading}
-                    />
-                    <button
-                      onClick={sendMessage}
-                      disabled={loading || !input.trim()}
-                      className="bg-[#C69C6D] disabled:bg-stone-300 text-white rounded-full p-2.5 transition-colors"
-                      aria-label="Send message"
-                    >
-                      <svg className="w-5 h-5 translate-x-px translate-y-px" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-            )}
+            </div>
 
           </div>
         </div>
       )}
 
+
       {/* Hero Section */}
-      <section className="relative text-white py-32 md:py-48 flex items-center justify-center min-h-screen overflow-hidden">
+      <section className="relative text-white min-h-screen flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
-          {heroImages.map((src, idx) => (
-            <Image
-              key={src}
-              src={src}
-              alt={`Luxury Salon Interior ${idx + 1}`}
-              fill
-              priority={idx === 0}
-              className={`object-cover object-center transition-opacity duration-1000 ${idx === currentHeroSlide ? "opacity-100" : "opacity-0"
-                }`}
-            />
-          ))}
-          <div className="absolute inset-0 bg-black/40 z-10 transition-opacity duration-1000" />
+          <AnimatePresence mode="wait">
+            {heroImages.map((src, idx) => (
+              idx === currentHeroSlide && (
+                <motion.div
+                  key={src}
+                  initial={{ opacity: 0, scale: 1.1 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 1.5, ease: "easeOut" }}
+                  className="absolute inset-0"
+                >
+                  <Image
+                    src={src}
+                    alt={`Luxury Salon Interior ${idx + 1}`}
+                    fill
+                    priority
+                    className="object-cover object-center"
+                  />
+                </motion.div>
+              )
+            ))}
+          </AnimatePresence>
+          <div className="absolute inset-0 bg-black/40 z-10" />
         </div>
 
-        <div className="relative z-10 max-w-5xl mx-auto text-center px-4">
-          <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-6 font-semibold">Discover Luxury</p>
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif mb-8 leading-tight tracking-tight">
-            Refined <br /> Elegance
-          </h1>
-          <p className="text-stone-50 max-w-2xl mx-auto mb-12 text-base md:text-lg font-light leading-relaxed">
-            Experience the pinnacle of modern styling and personalized beauty at Royal Glow Salon, where luxury meets artistry.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+        <div className="relative z-20 max-w-5xl mx-auto text-center px-4">
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="text-[#C69C6D] tracking-[0.4em] uppercase text-xs mb-8 font-bold"
+          >
+            Matara's Finest Destination
+          </motion.p>
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7, duration: 0.8 }}
+            className="text-6xl md:text-8xl lg:text-9xl font-serif mb-10 leading-[0.9] tracking-tighter"
+          >
+            Refining <br /> <span className="italic text-[#C69C6D]">Elegance</span>
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.2, duration: 1 }}
+            className="text-stone-200 max-w-xl mx-auto mb-14 text-sm md:text-base font-light leading-relaxed tracking-wide"
+          >
+            Enter a sanctuary of sophisticated beauty. At Royal Glow, we blend timeless artistry with modern innovation to redefine your unique essence.
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.5 }}
+            className="flex flex-col sm:flex-row gap-6 justify-center items-center"
+          >
             <button
               onClick={() => handleBookingAction("manual")}
-              className="bg-[#C69C6D] text-white px-8 py-4 tracking-[0.15em] uppercase text-sm font-medium hover:bg-[#B38759] transition-all duration-300 shadow-lg"
+              className="bg-[#C69C6D] text-white px-10 py-5 tracking-[0.2em] uppercase text-xs font-bold hover:bg-[#B38759] transition-all duration-300 shadow-2xl hover:scale-105 active:scale-95"
             >
-              Book Appointment
+              Reserve Visit
             </button>
             <button
               onClick={() => handleBookingAction("ai")}
-              className="text-white px-8 py-4 tracking-[0.15em] uppercase text-sm font-medium border border-white/50 backdrop-blur-sm bg-white/10 hover:bg-white/20 transition-all duration-300"
+              className="group text-white px-10 py-5 tracking-[0.2em] uppercase text-xs font-bold border border-white/30 backdrop-blur-md bg-white/5 hover:bg-white/10 transition-all duration-300 flex items-center gap-3"
             >
-              Consult AI
+              <span>Consult Bella AI</span>
+              <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
             </button>
-          </div>
+          </motion.div>
         </div>
+
       </section>
 
       {/* Stats Bar */}
@@ -617,46 +740,65 @@ function HomeContent() {
         </div>
       </section>
 
-      {/* ===== ABOUT US SECTIONS ===== */}
+
 
       {/* Story Section */}
-      <section id="about" className="py-20 md:py-28 px-6 md:px-12 bg-[#FDFBF7]">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
-          <div>
-            <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">Our Story</p>
-            <h2 className="text-3xl md:text-4xl font-serif mb-6 leading-tight">
-              Crafting Beauty <br />Since Day One
+      <section id="about" className="py-24 md:py-32 px-6 md:px-12 bg-[#FDFBF7] overflow-hidden">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-20 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -50 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            <p className="text-[#C69C6D] tracking-[0.3em] uppercase text-[10px] mb-5 font-bold">Heritage of Beauty</p>
+            <h2 className="text-4xl md:text-5xl font-serif mb-8 leading-tight text-[#3E2723]">
+              Crafting Excellence <br /> <span className="text-[#C69C6D]">Since inception.</span>
             </h2>
-            <p className="text-stone-600 leading-relaxed mb-6">
-              Royal Glow Salon was born from a passion for making people feel their absolute best.
-              Nestled in the vibrant city of <strong>Matara</strong>, we have built a reputation for
-              delivering exceptional hair care, cutting-edge styling, and a truly luxurious experience.
-            </p>
-            <p className="text-stone-600 leading-relaxed mb-6">
-              Our team of expert stylists stays at the forefront of global trends while respecting
-              each client&apos;s individuality. We believe that every visit should be more than an
-              appointment — it should be a moment of transformation and self-care.
-            </p>
-            <p className="text-stone-600 leading-relaxed">
-              From classic cuts to bridal packages, color transformations to keratin treatments,
-              we offer a comprehensive range of services for both men and women using only premium
-              professional products.
-            </p>
-          </div>
-          <div className="relative h-[500px] group">
+            <div className="space-y-6 text-stone-500 leading-relaxed font-light">
+              <p>
+                Royal Glow Salon was born from a singular vision: to create a sanctuary where beauty is not just maintained, but elevated to an art form.
+              </p>
+              <p>
+                Nestled in the heart of <strong>Matara</strong>, we have curated a collection of the world's most talented stylists and premium products to deliver a transformation that resonates with your personal narrative.
+              </p>
+              <p>
+                Every stroke of the brush and every cut of the shear is executed with precision and intention, ensuring that your visit is more than an appointment—it is a moment of refined self-care.
+              </p>
+            </div>
+            <div className="mt-10 flex items-center gap-6">
+              <div className="flex -space-x-3">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="w-10 h-10 rounded-full border-2 border-[#FDFBF7] bg-stone-200 overflow-hidden relative">
+                    <Image src="/1.jpg" alt="Client" fill className="object-cover" />
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-stone-400 font-medium">Joined by <span className="text-[#3E2723] font-bold">2,000+</span> happy clients</p>
+            </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 1 }}
+            className="relative h-[600px] group"
+          >
+            <div className="absolute inset-0 border border-stone-200 translate-x-6 translate-y-6 -z-10 group-hover:translate-x-4 group-hover:translate-y-4 transition-transform duration-500" />
             <Image
-              src="/customers/pretty-cute-young-woman-with-long-brunette-hair-smiling-camera-hairdresser-salon_197531-3664.jpg"
+              src="/customers/omar.jpg"
               alt="Happy client at Royal Glow Salon"
               fill
-              className="object-cover shadow-2xl transition-transform duration-700 group-hover:scale-[1.02]"
+              className="object-cover shadow-2xl grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700 rounded-sm"
             />
-            <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-[#C69C6D] flex items-center justify-center">
-              <div className="text-white text-center">
-                <p className="text-3xl font-serif font-bold">5★</p>
-                <p className="text-[10px] uppercase tracking-widest mt-1">Rated</p>
+            <div className="absolute -bottom-8 -left-8 bg-[#3E2723] p-8 shadow-2xl rounded-sm">
+              <p className="text-[#C69C6D] text-4xl font-serif mb-1">5.0</p>
+              <div className="flex gap-1 mb-2">
+                {[1, 2, 3, 4, 5].map(i => <svg key={i} className="w-3 h-3 fill-[#C69C6D]" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" /></svg>)}
               </div>
+              <p className="text-white text-[10px] uppercase tracking-widest font-bold">Google Rating</p>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
@@ -760,90 +902,65 @@ function HomeContent() {
             </div>
           </div>
         </div>
-      </section>
+      </section >
+
+      {/* Testimonials Section */}
+      <Reviews />
 
       {/* Look Book Section */}
-      <section className="py-20 md:py-28 px-6 md:px-12 bg-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">Inspiration</p>
-            <h2 className="text-3xl md:text-4xl font-serif mb-4">Look Book</h2>
-            <p className="text-stone-500 max-w-2xl mx-auto">
-              Browse through our portfolio of stunning transformations and styles crafted by our expert team.
-            </p>
+      <section className="py-24 md:py-32 px-6 md:px-12 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-[#C69C6D] tracking-[0.3em] uppercase text-[10px] mb-4 font-bold"
+            >
+              The Portfolio
+            </motion.p>
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="text-4xl md:text-5xl font-serif mb-6 text-[#3E2723]"
+            >
+              The Look Book
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="text-stone-500 max-w-xl mx-auto font-light leading-relaxed"
+            >
+              Witness the power of transformation. A curated gallery of our recent work and style inspirations.
+            </motion.p>
           </div>
-          <div className="columns-2 md:columns-3 gap-4 space-y-4">
+          <div className="columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6">
             {lookBookImages.map((img, idx) => (
-              <div
+              <motion.div
                 key={idx}
-                className="break-inside-avoid group cursor-pointer relative overflow-hidden"
-                onClick={() => setSelectedImage(idx)}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: idx * 0.05 }}
+                className="break-inside-avoid group relative overflow-hidden rounded-xl border border-stone-100"
               >
                 <Image
                   src={img.src}
                   alt={img.alt}
                   width={600}
                   height={400}
-                  className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="w-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">
-                  <svg
-                    className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                  </svg>
-                </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Lightbox Modal */}
-      {selectedImage !== null && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm"
-          onClick={() => setSelectedImage(null)}
-        >
-          <button
-            onClick={() => setSelectedImage(null)}
-            className="absolute top-6 right-6 text-white/70 hover:text-white transition-colors z-50"
-          >
-            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setSelectedImage((selectedImage - 1 + lookBookImages.length) % lookBookImages.length); }}
-            className="absolute left-4 md:left-8 text-white/70 hover:text-white transition-colors"
-          >
-            <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setSelectedImage((selectedImage + 1) % lookBookImages.length); }}
-            className="absolute right-4 md:right-8 text-white/70 hover:text-white transition-colors"
-          >
-            <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-          <div className="max-w-4xl max-h-[85vh] relative" onClick={(e) => e.stopPropagation()}>
-            <Image
-              src={lookBookImages[selectedImage].src}
-              alt={lookBookImages[selectedImage].alt}
-              width={1200}
-              height={800}
-              className="max-h-[85vh] w-auto object-contain"
-            />
-            <p className="text-center text-white/60 text-sm mt-4 tracking-wide">
-              {lookBookImages[selectedImage].alt} — {selectedImage + 1} / {lookBookImages.length}
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Contact Section */}
       <section id="contact" className="py-24 md:py-32 px-6 md:px-12 bg-[#FDFBF7]">
@@ -901,6 +1018,7 @@ function HomeContent() {
         </div>
       </section>
 
+
       {/* Map Section */}
       <section className="h-[400px] relative">
         <iframe
@@ -943,7 +1061,7 @@ function HomeContent() {
         </div>
       </section>
 
-    </main>
+    </main >
   );
 }
 
