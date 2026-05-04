@@ -18,7 +18,7 @@ export default function Login() {
     setLoading(true);
     setMessage("");
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -26,7 +26,19 @@ export default function Login() {
     if (error) {
       setMessage(error.message);
     } else {
-      window.location.href = "/";
+      // Check if there's a redirect target, or check if admin
+      const searchParams = new URLSearchParams(window.location.search);
+      const nextParam = searchParams.get("next") || "/";
+      
+      const user = data.user;
+      // Uses NEXT_PUBLIC_ADMIN_EMAIL environment variable to avoid hardcoding your real email
+      const isAdmin = user?.user_metadata?.role === 'admin' || user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+      
+      if (isAdmin && nextParam === "/") {
+        window.location.href = "/admin";
+      } else {
+        window.location.href = nextParam;
+      }
     }
     setLoading(false);
   };
