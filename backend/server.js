@@ -27,7 +27,7 @@ const rawSupabaseAnonKey = (
   ''
 ).trim();
 const hasSupabaseConfig = /^https?:\/\//i.test(rawSupabaseUrl) && rawSupabaseAnonKey && !/^your_supabase_/i.test(rawSupabaseUrl) && !/^your_supabase_/i.test(rawSupabaseAnonKey);
-console.log('Supabase config check:', { hasSupabaseConfig, rawSupabaseUrl: rawSupabaseUrl ? `${rawSupabaseUrl.slice(0,60)}...` : '(empty)', anonKeySet: !!rawSupabaseAnonKey });
+console.log('Supabase config check:', { hasSupabaseConfig, rawSupabaseUrl: rawSupabaseUrl ? `${rawSupabaseUrl.slice(0, 60)}...` : '(empty)', anonKeySet: !!rawSupabaseAnonKey });
 const inMemoryBookings = [];
 
 const app = express();
@@ -46,12 +46,12 @@ function buildSupabaseClient(accessToken) {
 
   const clientOptions = accessToken
     ? {
-        global: {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
         },
-      }
+      },
+    }
     : undefined;
 
   return createClient(rawSupabaseUrl, rawSupabaseAnonKey, clientOptions);
@@ -605,12 +605,13 @@ Bella:`;
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, history, userId, accessToken } = req.body;
+    const { message, history, userId, userEmail, accessToken } = req.body;
     const safeMessage = typeof message === 'string' ? message.trim() : '';
     const safeHistory = Array.isArray(history)
       ? history.filter((msg) => msg && typeof msg.text === 'string' && typeof msg.role === 'string')
       : [];
     const safeUserId = typeof userId === 'string' ? userId.trim() : '';
+    const safeUserEmail = typeof userEmail === 'string' ? userEmail.trim() : '';
     const safeAccessToken = typeof accessToken === 'string' ? accessToken.trim() : '';
 
     if (!safeMessage) {
@@ -693,6 +694,9 @@ app.post('/api/chat', async (req, res) => {
 
           if (safeUserId) {
             bookingData.user_id = safeUserId;
+          }
+          if (safeUserEmail) {
+            bookingData.user_email = safeUserEmail;
           }
 
           console.log("Saving appointment to Supabase:", bookingData);
@@ -845,7 +849,7 @@ app.get('/api/booked-slots', async (req, res) => {
 
 app.post('/api/book-manual', async (req, res) => {
   try {
-    const { name, service, date, userId, accessToken } = req.body;
+    const { name, service, date, userId, userEmail, accessToken } = req.body;
 
     if (!name || !service || !date) {
       return res.status(400).json({ error: "Missing required fields: name, service, or date." });
@@ -887,6 +891,9 @@ app.post('/api/book-manual', async (req, res) => {
 
     if (userId) {
       bookingData.user_id = userId;
+    }
+    if (userEmail) {
+      bookingData.user_email = userEmail;
     }
 
     const { data, error } = await saveBooking(bookingData, accessToken);
