@@ -14,32 +14,105 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 const upload = multer({ storage: multer.memoryStorage() });
+const rawSupabaseUrl = (
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.SUPABASE_URL ||
+  process.env.SUPABASE_REST_URL ||
+  ''
+).trim();
+const rawSupabaseAnonKey = (
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_KEY ||
+  ''
+).trim();
+const hasSupabaseConfig = /^https?:\/\//i.test(rawSupabaseUrl) && rawSupabaseAnonKey && !/^your_supabase_/i.test(rawSupabaseUrl) && !/^your_supabase_/i.test(rawSupabaseAnonKey);
+console.log('Supabase config check:', { hasSupabaseConfig, rawSupabaseUrl: rawSupabaseUrl ? `${rawSupabaseUrl.slice(0,60)}...` : '(empty)', anonKeySet: !!rawSupabaseAnonKey });
+const inMemoryBookings = [];
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-);
+function missingUserIdColumn(message) {
+  const msg = String(message || '').toLowerCase();
+  return msg.includes('user_id') && (msg.includes('schema cache') || msg.includes('does not exist'));
+}
+
+function buildSupabaseClient(accessToken) {
+  if (!hasSupabaseConfig) {
+    return null;
+  }
+
+  const clientOptions = accessToken
+    ? {
+        global: {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      }
+    : undefined;
+
+  return createClient(rawSupabaseUrl, rawSupabaseAnonKey, clientOptions);
+}
+
+const supabase = buildSupabaseClient();
 
 function getRequestSupabase(accessToken) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+  if (!hasSupabaseConfig) {
+    return null;
+  }
+
   if (!accessToken) return supabase;
 
-  return createClient(url, anonKey, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    },
-  });
+  return buildSupabaseClient(accessToken);
+}
+
+async function listBookingsInRange(windowStart, windowEnd, accessToken) {
+  if (!hasSupabaseConfig) {
+    return inMemoryBookings.filter((booking) => booking.appointment_date >= windowStart && booking.appointment_date <= windowEnd);
+  }
+
+  const client = getRequestSupabase(accessToken);
+  const { data, error } = await client
+    .from('bookings')
+    .select('appointment_date, service')
+    .gte('appointment_date', windowStart)
+    .lte('appointment_date', windowEnd);
+
+  if (error) {
+    throw error;
+  }
+
+  return data || [];
+}
+
+async function saveBooking(bookingData, accessToken) {
+  if (!hasSupabaseConfig) {
+    const savedBooking = {
+      id: Date.now(),
+      ...bookingData,
+    };
+
+    inMemoryBookings.push(savedBooking);
+    return { data: [savedBooking], error: null };
+  }
+
+  const client = getRequestSupabase(accessToken);
+  let { data, error } = await client.from('bookings').insert([bookingData]).select();
+
+  if (error && bookingData.user_id && missingUserIdColumn(error.message)) {
+    const fallbackBookingData = { ...bookingData };
+    delete fallbackBookingData.user_id;
+    ({ data, error } = await client.from('bookings').insert([fallbackBookingData]).select());
+  }
+
+  return { data, error };
 }
 
 const genAI = new GoogleGenAI({
-  apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || "",
+  apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "",
 });
 
 const NATURAL_COLOR_PRESETS = {
@@ -197,16 +270,25 @@ function extractAppointmentDetails(message, history) {
     details.service = "Gent hair cut 30 min (Rs. 4000+)";
   } else if (lowerConversation.includes("women's haircut") || lowerConversation.includes("women's hair cut")) {
     details.service = "Women's Haircut 60 min (Rs. 6000+)";
-  } else if (lowerConversation.includes("haircut") || lowerConversation.includes("hair cut") || lowerConversation.includes("trim")) {
-    details.service = "Haircut & Styling";
-  } else if (lowerConversation.includes("color") || lowerConversation.includes("colour") || lowerConversation.includes("highlight")) {
-    details.service = "Color & Highlights";
   } else if (lowerConversation.includes("keratin")) {
-    details.service = "Keratin Treatment";
+    details.service = "Keratin Treatment 120 min (Rs. 25000+)";
   } else if (lowerConversation.includes("bridal") || lowerConversation.includes("wedding")) {
-    details.service = "Bridal Package";
+    details.service = "Bridal Package 180 min (Rs. 50000+)";
+  } else if (lowerConversation.includes("color") || lowerConversation.includes("colour") || lowerConversation.includes("highlight")) {
+    // Determine if men's or women's color
+    if (lowerConversation.includes("men")) {
+      details.service = "Color & Highlights 60 min (Rs. 10000+)";
+    } else {
+      details.service = "Color & Highlights 120 min (Rs. 15000+)";
+    }
   } else if (lowerConversation.includes("consultation")) {
-    details.service = "Consultation";
+    if (lowerConversation.includes("women")) {
+      details.service = "Consultation 30 min (Rs. 2000)";
+    } else {
+      details.service = "Consultation 15 min (Rs. 2000)";
+    }
+  } else if (lowerConversation.includes("haircut") || lowerConversation.includes("hair cut") || lowerConversation.includes("trim")) {
+    details.service = "Gent hair cut 30 min (Rs. 4000+)"; // Default to gent if not specified
   }
 
   // Very basic extraction of "tomorrow", dates, and times
@@ -214,7 +296,7 @@ function extractAppointmentDetails(message, history) {
   if (timeMatch) {
     details.appointmentTime = timeMatch[0];
   }
-  
+
   if (lowerConversation.includes("tomorrow")) {
     const tmrw = new Date();
     tmrw.setDate(tmrw.getDate() + 1);
@@ -557,52 +639,73 @@ app.post('/api/chat', async (req, res) => {
             let hours = timeMatch ? parseInt(timeMatch[1]) : 12;
             let mins = timeMatch && timeMatch[2] ? timeMatch[2] : '00';
             let meridiem = timeMatch && timeMatch[3] ? timeMatch[3] : '';
-            
+
             if (meridiem === 'pm' && hours < 12) hours += 12;
             if (meridiem === 'am' && hours === 12) hours = 0;
-            
+
             const hh = String(hours).padStart(2, '0');
             const mm = String(mins).padStart(2, '0');
             dateTimeString = `${dateTimeString}T${hh}:${mm}:00`;
-          } catch(e) {
+          } catch (e) {
             dateTimeString = `${dateTimeString}T12:00:00`;
           }
         } else {
-            dateTimeString = `${dateTimeString}T12:00:00`;
+          dateTimeString = `${dateTimeString}T12:00:00`;
         }
 
-        const missingUserIdColumn = (message) => {
-          const msg = String(message || "").toLowerCase();
-          return msg.includes("user_id") && (msg.includes("schema cache") || msg.includes("does not exist"));
-        };
 
-        const bookingData = {
-          customer_name: appointmentDetails.customerName || "Guest",
-          service: appointmentDetails.service,
-          appointment_date: new Date(dateTimeString).toISOString(),
-        };
+        const appointmentISO = new Date(dateTimeString).toISOString();
+        const start = new Date(appointmentISO);
+        const durationMatch = appointmentDetails.service.match(/(\d+)\s*min/);
+        const duration = durationMatch ? parseInt(durationMatch[1]) : 60;
+        const end = new Date(start.getTime() + duration * 60000);
 
-        if (safeUserId) {
-          bookingData.user_id = safeUserId;
+        // Fetch bookings within a 24-hour window of the target time to be safe with timezones
+        const windowStart = new Date(start.getTime() - 12 * 60 * 60 * 1000).toISOString();
+        const windowEnd = new Date(start.getTime() + 12 * 60 * 60 * 1000).toISOString();
+
+
+
+        const existingBookings = await listBookingsInRange(windowStart, windowEnd, safeAccessToken);
+
+        let isOverlapping = false;
+        for (const booking of (existingBookings || [])) {
+          const bStart = new Date(booking.appointment_date);
+          const bDurMatch = booking.service ? booking.service.match(/(\d+)\s*min/) : null;
+          const bDur = bDurMatch ? parseInt(bDurMatch[1]) : 60;
+          const bEnd = new Date(bStart.getTime() + bDur * 60000);
+
+          // Standard overlap check: max(start1, start2) < min(end1, end2)
+          if (Math.max(start.getTime(), bStart.getTime()) < Math.min(end.getTime(), bEnd.getTime())) {
+            isOverlapping = true;
+            break;
+          }
         }
 
-        console.log("Saving appointment to Supabase:", bookingData);
-        console.log("Supabase config check (URL):", !!process.env.NEXT_PUBLIC_SUPABASE_URL);
-
-        const requestSupabase = getRequestSupabase(safeAccessToken);
-        let { data, error } = await requestSupabase.from("bookings").insert([bookingData]).select();
-
-        if (error && bookingData.user_id && missingUserIdColumn(error.message)) {
-          delete bookingData.user_id;
-          ({ data, error } = await requestSupabase.from("bookings").insert([bookingData]).select());
-        }
-
-        if (error) {
-          console.error("Supabase error:", error);
-          bookingError = error.message || 'database error';
+        if (isOverlapping) {
+          bookingError = "This time slot is already booked. Please choose another time.";
         } else {
-          console.log("Appointment saved successfully:", data);
-          bookingSaved = true;
+          const bookingData = {
+            customer_name: appointmentDetails.customerName || "Guest",
+            service: appointmentDetails.service,
+            appointment_date: appointmentISO,
+          };
+
+          if (safeUserId) {
+            bookingData.user_id = safeUserId;
+          }
+
+          console.log("Saving appointment to Supabase:", bookingData);
+
+          const { data, error } = await saveBooking(bookingData, safeAccessToken);
+
+          if (error) {
+            console.error("Supabase error:", error);
+            bookingError = error.message || 'database error';
+          } else {
+            console.log("Appointment saved successfully:", data);
+            bookingSaved = true;
+          }
         }
       } catch (dbError) {
         console.error("Database error:", dbError);
@@ -623,27 +726,27 @@ app.post('/api/chat', async (req, res) => {
 
     const contents = safeHistory.length > 0
       ? [
-          ...safeHistory.map((msg) => ({
-            role: msg.role === "user" ? "user" : "model",
-            parts: [{ text: msg.text }],
-          })),
-          {
-            role: "user",
-            parts: [{ text: safeMessage }],
-          },
-        ]
+        ...safeHistory.map((msg) => ({
+          role: msg.role === "user" ? "user" : "model",
+          parts: [{ text: msg.text }],
+        })),
+        {
+          role: "user",
+          parts: [{ text: safeMessage }],
+        },
+      ]
       : [{ role: "user", parts: [{ text: safeMessage }] }]; // Use array format consistently
 
     if (shouldBook && bookingSaved) {
-       contents.push({
-           role: "user",
-           parts: [{ text: "SYSTEM MESSAGE: The booking was successfully saved to the database. Let the user know." }]
-       });
+      contents.push({
+        role: "user",
+        parts: [{ text: "SYSTEM MESSAGE: The booking was successfully saved to the database. Let the user know." }]
+      });
     } else if (shouldBook && bookingError) {
-       contents.push({
-           role: "user",
-           parts: [{ text: `SYSTEM MESSAGE: The booking failed due to an error: ${bookingError}. Apologize to the user.` }]
-       });
+      contents.push({
+        role: "user",
+        parts: [{ text: `SYSTEM MESSAGE: The booking failed due to an error: ${bookingError}. Apologize to the user.` }]
+      });
     }
 
     if (process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
@@ -690,7 +793,7 @@ app.post('/api/recolor-hair', upload.single('image'), async (req, res) => {
         error: 'Picsart API key is missing in backend environment. Set PICSART_API_KEY in backend/.env and restart backend.',
       });
     }
-    
+
     const targetColorHex = req.body.color || "8D3127";
     const naturalTargetColorHex = toNaturalHairHex(targetColorHex);
 
@@ -719,6 +822,83 @@ app.post('/api/recolor-hair', upload.single('image'), async (req, res) => {
   } catch (error) {
     console.error("Recolor Error:", error);
     res.status(500).json({ error: "Failed to recolor image" });
+  }
+});
+
+app.get('/api/booked-slots', async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) return res.status(400).json({ error: "Date is required" });
+
+    // Fetch all bookings for a 24h window around the date (UTC safe)
+    const targetDate = new Date(date);
+    const windowStart = new Date(targetDate.getTime() - 12 * 60 * 60 * 1000).toISOString();
+    const windowEnd = new Date(targetDate.getTime() + 36 * 60 * 60 * 1000).toISOString();
+
+    const data = await listBookingsInRange(windowStart, windowEnd, null);
+    res.json(data);
+  } catch (error) {
+    console.error("Fetch Booked Slots Error:", error);
+    res.status(500).json({ error: "Failed to fetch bookings" });
+  }
+});
+
+app.post('/api/book-manual', async (req, res) => {
+  try {
+    const { name, service, date, userId, accessToken } = req.body;
+
+    if (!name || !service || !date) {
+      return res.status(400).json({ error: "Missing required fields: name, service, or date." });
+    }
+
+    const start = new Date(date);
+    const durationMatch = service.match(/(\d+)\s*min/);
+    const duration = durationMatch ? parseInt(durationMatch[1]) : 60;
+    const end = new Date(start.getTime() + duration * 60000);
+
+    // Fetch bookings within a 24-hour window of the target time
+    const windowStart = new Date(start.getTime() - 12 * 60 * 60 * 1000).toISOString();
+    const windowEnd = new Date(start.getTime() + 12 * 60 * 60 * 1000).toISOString();
+
+    const existingBookings = await listBookingsInRange(windowStart, windowEnd, accessToken);
+
+    let isOverlapping = false;
+    for (const booking of (existingBookings || [])) {
+      const bStart = new Date(booking.appointment_date);
+      const bDurMatch = booking.service ? booking.service.match(/(\d+)\s*min/) : null;
+      const bDur = bDurMatch ? parseInt(bDurMatch[1]) : 60;
+      const bEnd = new Date(bStart.getTime() + bDur * 60000);
+
+      if (Math.max(start.getTime(), bStart.getTime()) < Math.min(end.getTime(), bEnd.getTime())) {
+        isOverlapping = true;
+        break;
+      }
+    }
+
+    if (isOverlapping) {
+      return res.status(409).json({ error: "This time slot is already booked. Please choose another time." });
+    }
+
+    const bookingData = {
+      customer_name: name,
+      service: service,
+      appointment_date: date,
+    };
+
+    if (userId) {
+      bookingData.user_id = userId;
+    }
+
+    const { data, error } = await saveBooking(bookingData, accessToken);
+
+    if (error) {
+      return res.status(500).json({ error: error.message || 'database error' });
+    }
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error("Manual Booking Error:", error);
+    res.status(500).json({ error: "Failed to book appointment." });
   }
 });
 

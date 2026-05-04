@@ -18,7 +18,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="light">
+    <html lang="en" className="light" data-scroll-behavior="smooth">
       <body className={`${inter.className} bg-stone-50 text-stone-900 antialiased`} suppressHydrationWarning>
         <Navbar />
         {children}

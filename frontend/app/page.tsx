@@ -665,6 +665,7 @@ function HomeContent() {
                     alt={`Luxury Salon Interior ${idx + 1}`}
                     fill
                     priority
+                    sizes="100vw"
                     className="object-cover object-center"
                   />
                 </motion.div>
@@ -770,7 +771,7 @@ function HomeContent() {
               <div className="flex -space-x-3">
                 {[1, 2, 3, 4].map(i => (
                   <div key={i} className="w-10 h-10 rounded-full border-2 border-[#FDFBF7] bg-stone-200 overflow-hidden relative">
-                    <Image src="/1.jpg" alt="Client" fill className="object-cover" />
+                    <Image src="/1.jpg" alt="Client" fill sizes="40px" className="object-cover" />
                   </div>
                 ))}
               </div>
@@ -789,6 +790,7 @@ function HomeContent() {
               src="/customers/omar.jpg"
               alt="Happy client at Royal Glow Salon"
               fill
+              sizes="(max-width: 768px) 100vw, 50vw"
               className="object-cover shadow-2xl grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700 rounded-sm"
             />
             <div className="absolute -bottom-8 -left-8 bg-[#3E2723] p-8 shadow-2xl rounded-sm">
