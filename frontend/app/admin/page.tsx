@@ -40,12 +40,12 @@ export default function AdminDashboard() {
       <div className="flex h-screen bg-stone-100 font-sans text-stone-900 pt-16">
       
       {/* Admin Sidebar - Desktop */}
-      <aside className="w-64 bg-white border-r border-stone-200 shadow-sm flex flex-col hidden md:flex">
-        <div className="p-6 border-b border-stone-100">
-          <h2 className="text-xl font-serif text-[#C69C6D] uppercase tracking-widest">Admin Panel</h2>
-        </div>
+        <aside className="w-64 bg-white border-r border-stone-200 shadow-sm flex-col hidden md:flex">
+          <div className="p-6 border-b border-stone-100">
+            <h2 className="text-xl font-serif text-[#C69C6D] uppercase tracking-widest">Admin Panel</h2>
+          </div>
         
-        <nav className="flex-1 p-4 space-y-2">
+          <nav className="flex-1 p-4 space-y-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
