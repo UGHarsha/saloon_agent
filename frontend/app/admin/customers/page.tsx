@@ -122,19 +122,22 @@ export default function AdminCustomersPage() {
 
         setActionLoading(true);
         try {
-            let query = supabase.from("bookings").delete();
+            const { data: { session } } = await supabase.auth.getSession();
+            const bookingIds = customer.bookings.map(b => b.id);
 
-            if (typeof customer.id === 'string' && customer.id.startsWith("name:")) {
-                query = query.eq("customer_name", customer.name);
-            } else if (customer.id === customer.name) {
-                query = query.eq("customer_name", customer.name);
-            } else {
-                query = query.eq("user_id", customer.id);
+            const response = await fetch("http://localhost:5000/api/delete-bookings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    ids: bookingIds,
+                    accessToken: session?.access_token
+                })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Backend deletion failed");
             }
-
-            const { error: deleteError } = await query;
-
-            if (deleteError) throw deleteError;
 
             setCustomers(customers.filter(c => c.id !== customer.id));
             if (selectedCustomer?.id === customer.id) {

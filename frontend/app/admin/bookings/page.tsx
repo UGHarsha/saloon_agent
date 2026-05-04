@@ -21,7 +21,7 @@ export default function AdminBookingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  
+
   // Edit State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Booking>>({});
@@ -77,7 +77,7 @@ export default function AdminBookingsPage() {
         .eq("id", id);
 
       if (updateError) throw updateError;
-      
+
       // Update local state
       setBookings(bookings.map(b => b.id === id ? { ...b, ...editFormData } : b));
       setEditingId(null);
@@ -94,16 +94,24 @@ export default function AdminBookingsPage() {
     if (!window.confirm("Are you sure you want to delete this appointment? This action cannot be undone.")) {
       return;
     }
-    
+
     setActionLoading(true);
     try {
-      const { error: deleteError } = await supabase
-        .from("bookings")
-        .delete()
-        .eq("id", id);
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch("http://localhost:5000/api/delete-bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids: [id],
+          accessToken: session?.access_token
+        })
+      });
 
-      if (deleteError) throw deleteError;
-      
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Delete failed");
+      }
+
       // Update local state
       setBookings(bookings.filter(b => b.id !== id));
     } catch (err: unknown) {
@@ -114,8 +122,8 @@ export default function AdminBookingsPage() {
     }
   };
 
-  const filteredBookings = bookings.filter(b => 
-    b.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredBookings = bookings.filter(b =>
+    b.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     b.service?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -123,7 +131,7 @@ export default function AdminBookingsPage() {
     <>
       <AdminNavbar />
       <div className="flex h-screen bg-stone-100 font-sans text-stone-900 pt-16">
-        
+
         {/* Admin Sidebar - Desktop */}
         <aside className="w-64 bg-white border-r border-stone-200 shadow-sm flex-col hidden md:flex h-full">
           <nav className="flex-1 p-4 space-y-2 mt-4">
@@ -145,7 +153,7 @@ export default function AdminBookingsPage() {
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-6xl mx-auto">
-            
+
             {/* Header */}
             <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
@@ -157,7 +165,7 @@ export default function AdminBookingsPage() {
                   View, edit, and delete all customer bookings here.
                 </p>
               </div>
-              
+
               {/* Search */}
               <div className="relative w-full md:w-72">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -203,7 +211,7 @@ export default function AdminBookingsPage() {
                     <tbody className="divide-y divide-stone-100">
                       {filteredBookings.map((booking) => (
                         <tr key={booking.id} className="hover:bg-stone-50/50 transition">
-                          
+
                           {/* Customer Name */}
                           <td className="p-4 pl-6 align-middle">
                             {editingId === booking.id ? (
@@ -217,7 +225,7 @@ export default function AdminBookingsPage() {
                               <div className="font-medium text-stone-800">{booking.customer_name || "Unknown"}</div>
                             )}
                           </td>
-                          
+
                           {/* Service */}
                           <td className="p-4 align-middle">
                             {editingId === booking.id ? (
@@ -316,7 +324,7 @@ export default function AdminBookingsPage() {
                 </div>
               )}
             </div>
-            
+
           </div>
         </main>
       </div>
