@@ -1,6 +1,15 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function AIBotButton() {
+    const pathname = usePathname();
+
+    if (pathname?.startsWith("/admin")) {
+        return null;
+    }
+
     return (
         <Link href="/?book=ai"
             className="fixed bottom-8 right-8 bg-[#3E2723] text-white p-0 rounded-full shadow-2xl hover:scale-110 transition-all duration-300 z-50 flex items-center justify-center group w-16 h-16 border-2 border-white/20"
