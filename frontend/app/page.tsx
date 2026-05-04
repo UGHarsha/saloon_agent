@@ -216,6 +216,7 @@ function HomeContent() {
           service: manualForm.service,
           date: appointmentDate,
           userId: session.user.id,
+          userEmail: session.user.email,
           accessToken: session.access_token,
         }),
       });
@@ -261,6 +262,7 @@ function HomeContent() {
           message: input,
           history: chatLog,
           userId: session.user.id,
+          userEmail: session.user.email,
           accessToken: session.access_token,
         }),
       });
