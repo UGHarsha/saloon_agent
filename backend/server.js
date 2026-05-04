@@ -909,6 +909,35 @@ app.post('/api/book-manual', async (req, res) => {
   }
 });
 
+app.post('/api/delete-bookings', async (req, res) => {
+  try {
+    const { ids, accessToken } = req.body;
+    if (!ids || !Array.isArray(ids)) {
+      return res.status(400).json({ error: "Booking IDs are required." });
+    }
+
+    const client = getRequestSupabase(accessToken);
+    if (!client && hasSupabaseConfig) throw new Error("Supabase client not configured");
+
+    const normalizedIds = ids.map(id => !isNaN(Number(id)) && typeof id !== 'boolean' ? Number(id) : id);
+
+    const { error } = await client
+      .from('bookings')
+      .delete()
+      .in('id', normalizedIds);
+
+    if (error) {
+      console.error("Delete Error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Delete Endpoint Error:", error);
+    res.status(500).json({ error: "Failed to delete bookings." });
+  }
+});
+
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
