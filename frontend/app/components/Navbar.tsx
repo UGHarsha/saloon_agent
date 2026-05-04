@@ -42,7 +42,6 @@ export default function Navbar() {
   };
 
   const navLinks = [
-    { name: "Home", href: "/" },
     { name: "About", href: "/#about" },
     { name: "Services", href: "/services" },
     { name: "Virtual Try-On", href: "/recolor" },
@@ -65,13 +64,14 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2 group z-50">
+          <Link href="/" className="flex items-center space-x-4 group z-50">
             {isSolid ? (
               <Image
                 src="/black.png"
                 alt="Royal Glow Logo"
                 width={55}
                 height={55}
+                style={{ width: "auto" }}
                 className="object-contain"
               />
             ) : (
@@ -80,6 +80,7 @@ export default function Navbar() {
                 alt="Royal Glow Logo"
                 width={55}
                 height={55}
+                style={{ width: "auto" }}
                 className="object-contain"
               />
             )}
@@ -89,7 +90,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-7">
+          <div className="hidden md:flex items-center space-x-10">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
@@ -103,7 +104,7 @@ export default function Navbar() {
               </Link>
             ))}
 
-            <div className="h-4 w-px bg-stone-300/50 mx-4"></div>
+            <div className="h-4 w-px bg-stone-300/50 mx-6"></div>
 
             {user ? (
               <>
