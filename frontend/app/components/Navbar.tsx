@@ -6,22 +6,40 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { supabase } from "../../utils/supabase";
 import { User } from "@supabase/supabase-js";
-import { Menu, X, Scissors } from "lucide-react";
+import { Menu, X, Scissors, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      // Check if user is admin
+      if (currentUser) {
+        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+        const isUserAdmin = currentUser.user_metadata?.role === 'admin' || currentUser.email === adminEmail;
+        setIsAdmin(isUserAdmin);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      if (currentUser) {
+        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+        const isUserAdmin = currentUser.user_metadata?.role === 'admin' || currentUser.email === adminEmail;
+        setIsAdmin(isUserAdmin);
+      } else {
+        setIsAdmin(false);
+      }
     });
 
     const handleScroll = () => {
@@ -50,6 +68,10 @@ export default function Navbar() {
 
   if (user) {
     navLinks.push({ name: "Appointments", href: "/bookings" });
+  }
+
+  if (pathname?.startsWith("/admin")) {
+    return null;
   }
 
   const isSolid = scrolled || pathname !== "/";
@@ -108,6 +130,16 @@ export default function Navbar() {
 
             {user ? (
               <>
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    className={`text-sm font-medium uppercase tracking-widest transition-colors flex items-center gap-2 ${isSolid ? "text-[#C69C6D] hover:text-[#B8885F]" : "text-[#C69C6D] hover:text-[#B8885F]"
+                      }`}
+                  >
+                    <Shield className="w-4 h-4" />
+                    Admin Panel
+                  </Link>
+                )}
                 <button
                   onClick={handleLogout}
                   className={`text-sm font-medium uppercase tracking-widest transition-colors ${isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
@@ -171,6 +203,16 @@ export default function Navbar() {
             <div className="pt-4 flex flex-col space-y-4">
               {user ? (
                 <>
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      onClick={toggleMenu}
+                      className="text-lg font-medium text-[#C69C6D] flex items-center gap-2 border-b border-stone-100 pb-4"
+                    >
+                      <Shield className="w-5 h-5" />
+                      Admin Panel
+                    </Link>
+                  )}
                   <button
                     onClick={() => {
                       handleLogout();
