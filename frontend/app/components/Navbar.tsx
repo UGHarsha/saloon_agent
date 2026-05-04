@@ -71,6 +71,7 @@ export default function Navbar() {
                 alt="Royal Glow Logo"
                 width={55}
                 height={55}
+                style={{ width: "auto" }}
                 className="object-contain"
               />
             ) : (
@@ -79,6 +80,7 @@ export default function Navbar() {
                 alt="Royal Glow Logo"
                 width={55}
                 height={55}
+                style={{ width: "auto" }}
                 className="object-contain"
               />
             )}

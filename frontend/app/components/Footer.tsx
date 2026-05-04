@@ -10,7 +10,7 @@ export default function Footer() {
                     {/* Brand */}
                     <div className="space-y-8">
                         <Link href="/" className="inline-block">
-                            <Image src="/wite.png" alt="Royal Glow" width={80} height={80} className="mb-4 opacity-80" />
+                            <Image src="/wite.png" alt="Royal Glow" width={80} height={80} style={{ width: "auto" }} className="mb-4 opacity-80" />
                             <h2 className="text-white font-serif text-2xl tracking-[0.2em] uppercase">Royal Glow</h2>
                         </Link>
                         <p className="text-sm font-light leading-relaxed max-w-xs">
