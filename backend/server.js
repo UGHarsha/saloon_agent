@@ -253,7 +253,7 @@ function toNaturalHairHex(inputColor) {
   return rgbToHex(hslToRgb(adjusted));
 }
 
-function extractAppointmentDetails(message, history) {
+function extractAppointmentDetails(message, history, servicesList) {
   const userHistory = (history || []).filter((msg) => msg?.role === 'user');
   const fullConversation = [...userHistory.map((msg) => msg.text), message].join(" ");
   const lowerConversation = fullConversation.toLowerCase();
@@ -262,33 +262,13 @@ function extractAppointmentDetails(message, history) {
 
   const details = {};
 
-  if (lowerConversation.includes("adult buzz cut") || lowerConversation.includes("buzz cut")) {
-    details.service = "Adult Buzz Cut 60 min (Rs. 5000+)";
-  } else if (lowerConversation.includes("clean up") || lowerConversation.includes("beard") || lowerConversation.includes("neck trim")) {
-    details.service = "Clean Up - Beard & Neck Trim 15 min (Rs. 2500+)";
-  } else if (lowerConversation.includes("gent hair cut") || lowerConversation.includes("gent's haircut")) {
-    details.service = "Gent hair cut 30 min (Rs. 4000+)";
-  } else if (lowerConversation.includes("women's haircut") || lowerConversation.includes("women's hair cut")) {
-    details.service = "Women's Haircut 60 min (Rs. 6000+)";
-  } else if (lowerConversation.includes("keratin")) {
-    details.service = "Keratin Treatment 120 min (Rs. 25000+)";
-  } else if (lowerConversation.includes("bridal") || lowerConversation.includes("wedding")) {
-    details.service = "Bridal Package 180 min (Rs. 50000+)";
-  } else if (lowerConversation.includes("color") || lowerConversation.includes("colour") || lowerConversation.includes("highlight")) {
-    // Determine if men's or women's color
-    if (lowerConversation.includes("men")) {
-      details.service = "Color & Highlights 60 min (Rs. 10000+)";
-    } else {
-      details.service = "Color & Highlights 120 min (Rs. 15000+)";
+  if (servicesList && servicesList.length > 0) {
+    for (const service of servicesList) {
+      if (lowerConversation.includes(service.name.toLowerCase())) {
+        details.service = `${service.name} ${service.duration} min (Rs. ${service.price})`;
+        break;
+      }
     }
-  } else if (lowerConversation.includes("consultation")) {
-    if (lowerConversation.includes("women")) {
-      details.service = "Consultation 30 min (Rs. 2000)";
-    } else {
-      details.service = "Consultation 15 min (Rs. 2000)";
-    }
-  } else if (lowerConversation.includes("haircut") || lowerConversation.includes("hair cut") || lowerConversation.includes("trim")) {
-    details.service = "Gent hair cut 30 min (Rs. 4000+)"; // Default to gent if not specified
   }
 
   // Very basic extraction of "tomorrow", dates, and times
@@ -560,7 +540,13 @@ async function runPicsartRecolor(file, naturalTargetColorHex, picsartApiKey) {
   throw new Error(`Picsart ${picsartResponse.status}: ${reason}`);
 }
 
-const PROMPT_TEMPLATE = `You are Bella, a sophisticated AI receptionist for a luxury salon in Sri Lanka. 
+function buildAIPrompt(servicesList) {
+  const menServices = (servicesList || []).filter(s => s.category.toLowerCase() === 'men')
+    .map((s, i) => `${i + 1}. ${s.name} ${s.duration} min - Rs. ${s.price}`).join('\n');
+  const womenServices = (servicesList || []).filter(s => s.category.toLowerCase() === 'women')
+    .map((s, i) => `${i + 1}. ${s.name} ${s.duration} min - Rs. ${s.price}`).join('\n');
+
+  return `You are Bella, a sophisticated AI receptionist for a luxury salon in Sri Lanka. 
 You ONLY handle salon-related queries. NEVER break character.
 If asked about topics outside salon services (e.g., coding, politics, recipes, general facts), politely guide the conversation back to the salon.
 
@@ -580,28 +566,14 @@ IMPORTANT BOOKING RULES:
 Here is our exact price list in LKR. Use ONLY these services and amounts when booking:
 
 MEN'S SERVICES:
-1. Adult Buzz Cut 60 min - Rs. 5000+
-2. Clean Up - Beard & Neck Trim 15 min - Rs. 2500+
-3. Gent hair cut 30 min - Rs. 4000+
-4. Color & Highlights 60 min - Rs. 10000+
-5. Consultation 15 min - Rs. 2000
+${menServices}
 
 WOMEN'S SERVICES:
-1. Women's Haircut 60 min - Rs. 6000+
-2. Color & Highlights 120 min - Rs. 15000+
-3. Keratin Treatment 120 min - Rs. 25000+
-4. Bridal Package 180 min - Rs. 50000+
-5. Consultation 30 min - Rs. 2000
+${womenServices}
 
 When asked about prices, always ask first if they are looking for Men's or Women's services, then show the corresponding list.
-When outputting JSON, ensure the service name matches the list above perfectly.
-
-
-Conversation History:
-{HISTORY}
-
-User: {USER_INPUT}
-Bella:`;
+When outputting JSON, ensure the service name matches the list above perfectly.`;
+}
 
 app.post('/api/chat', async (req, res) => {
   try {
@@ -618,7 +590,17 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: "Message is required." });
     }
 
-    const appointmentDetails = extractAppointmentDetails(safeMessage, safeHistory);
+    // Reuse the exact services fetching logic
+    let servicesList = inMemoryServices; // Always defaults to in-memory locally mapped initially
+    const client = getRequestSupabase(safeAccessToken);
+    if (client) {
+      const { data, error } = await client.from('services').select('*').order('category', { ascending: false }).order('name', { ascending: true });
+      if (!error || !isTableMissingError(error)) {
+        servicesList = data || inMemoryServices;
+      }
+    }
+
+    const appointmentDetails = extractAppointmentDetails(safeMessage, safeHistory, servicesList);
 
     const bookingKeywords = ["confirm", "book", "schedule", "yes", "okay", "sure", "perfect", "sounds good"];
     const userConversationText = [
@@ -759,7 +741,7 @@ app.post('/api/chat', async (req, res) => {
           model: "gemini-2.5-flash",
           contents: contents,
           config: {
-            systemInstruction: PROMPT_TEMPLATE,
+            systemInstruction: buildAIPrompt(servicesList),
           },
         });
 
@@ -935,6 +917,251 @@ app.post('/api/delete-bookings', async (req, res) => {
   } catch (error) {
     console.error("Delete Endpoint Error:", error);
     res.status(500).json({ error: "Failed to delete bookings." });
+  }
+});
+
+// --- IN-MEMORY FALLBACK ---
+let inMemoryServices = [
+  { id: 1, name: "Adult Buzz Cut", category: "Men", price: "5000", duration: 60 },
+  { id: 2, name: "Clean Up - Beard & Neck Trim", category: "Men", price: "2500", duration: 15 },
+  { id: 3, name: "Gent hair cut", category: "Men", price: "4000", duration: 30 },
+  { id: 4, name: "Color & Highlights", category: "Men", price: "10000", duration: 60 },
+  { id: 5, name: "Consultation", category: "Men", price: "2000", duration: 15 },
+  { id: 6, name: "Women's Haircut", category: "Women", price: "6000", duration: 60 },
+  { id: 7, name: "Color & Highlights", category: "Women", price: "15000", duration: 120 },
+  { id: 8, name: "Keratin Treatment", category: "Women", price: "25000", duration: 120 },
+  { id: 9, name: "Bridal Package", category: "Women", price: "50000", duration: 180 },
+  { id: 10, name: "Consultation", category: "Women", price: "2000", duration: 30 },
+];
+let nextServiceId = 11;
+
+let inMemoryLookbook = [
+  { id: 1, src: "/customers/client-doing-hair-cut-barber-shop-salon_1303-20710.jpg", alt: "Barber shop styling" },
+  { id: 2, src: "/customers/female-hairdresser.jpg", alt: "Beauty salon look" },
+  { id: 3, src: "/customers/female-hairdresser-making-hairstyle-blonde-woman-beauty-salon_176420-4458.jpg", alt: "Blonde hairstyle" },
+  { id: 4, src: "/customers/female-hairdresser-making-hairstyle-redhead-woman-beauty-salon_176420-4476.jpg", alt: "Redhead hairstyle" },
+  { id: 5, src: "/customers/female-hairdresser-making-hairstyle-redhead-woman-beauty-salon_176420-4482.jpg", alt: "Elegant redhead styling" },
+  { id: 6, src: "/customers/female-hairdresser-using-hairbrush-hair-dryer_329181-1929.jpg", alt: "Professional blow dry" },
+  { id: 7, src: "/customers/pretty-cute-young.jpg", alt: "Happy client" },
+  { id: 8, src: "/customers/professional-girl-hairdresser-makes-client-haircut-girl-is-sitting-mask-beauty-salon_343596-4444.jpg", alt: "Professional haircut" },
+  { id: 9, src: "/customers/woman-washing-head-hairsalon_1157-27179.jpg", alt: "Hair wash treatment" },
+  { id: 10, src: "/customers/young-beautiful-bride-is-standing-summer-park-with-bouquet-flowers.jpg", alt: "Bridal styling" },
+  { id: 11, src: "/customers/young-man-barbershop-trimming.jpg", alt: "Men's grooming" },
+  { id: 12, src: "/1.jpg", alt: "Master Artistry" },
+];
+let nextLookbookId = 13;
+
+function isTableMissingError(error) {
+  const msg = String(error?.message || '').toLowerCase();
+  return msg.includes('schema cache') || msg.includes('does not exist') || msg.includes('relation');
+}
+
+// --- SERVICES ENDPOINTS ---
+
+app.get('/api/services', async (req, res) => {
+  try {
+    const { accessToken } = req.query;
+    const client = getRequestSupabase(accessToken);
+
+    if (client) {
+      const { data, error } = await client
+        .from('services')
+        .select('*')
+        .order('category', { ascending: false })
+        .order('name', { ascending: true });
+
+      if (error) {
+        if (isTableMissingError(error)) return res.json(inMemoryServices);
+        throw error;
+      }
+      return res.json(data || []);
+    }
+    return res.json(inMemoryServices);
+  } catch (error) {
+    console.error("Fetch Services Error:", error);
+    res.status(500).json({ error: "Failed to fetch services." });
+  }
+});
+
+app.post('/api/services', async (req, res) => {
+  try {
+    const { name, category, price, duration, accessToken } = req.body;
+    const client = getRequestSupabase(accessToken);
+
+    if (client) {
+      const { data, error } = await client
+        .from('services')
+        .insert([{ name, category, price, duration }])
+        .select();
+
+      if (error) {
+        if (isTableMissingError(error)) {
+          const newSvc = { id: nextServiceId++, name, category, price, duration };
+          inMemoryServices.push(newSvc);
+          return res.json({ success: true, data: [newSvc] });
+        }
+        throw error;
+      }
+      return res.json({ success: true, data });
+    }
+
+    const newSvc = { id: nextServiceId++, name, category, price, duration };
+    inMemoryServices.push(newSvc);
+    return res.json({ success: true, data: [newSvc] });
+  } catch (error) {
+    console.error("Add Service Error:", error);
+    res.status(500).json({ error: error.message || "Failed to add service." });
+  }
+});
+
+app.put('/api/services/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { name, category, price, duration, accessToken } = req.body;
+    const client = getRequestSupabase(accessToken);
+
+    if (client) {
+      const { data, error } = await client
+        .from('services')
+        .update({ name, category, price, duration })
+        .eq('id', id)
+        .select();
+
+      if (error) {
+        if (isTableMissingError(error)) {
+          const idx = inMemoryServices.findIndex(s => String(s.id) === String(id));
+          if (idx !== -1) inMemoryServices[idx] = { ...inMemoryServices[idx], name, category, price, duration };
+          return res.json({ success: true, data: inMemoryServices[idx] ? [inMemoryServices[idx]] : [] });
+        }
+        throw error;
+      }
+      return res.json({ success: true, data });
+    }
+
+    const idx = inMemoryServices.findIndex(s => String(s.id) === String(id));
+    if (idx !== -1) inMemoryServices[idx] = { ...inMemoryServices[idx], name, category, price, duration };
+    return res.json({ success: true, data: inMemoryServices[idx] ? [inMemoryServices[idx]] : [] });
+  } catch (error) {
+    console.error("Update Service Error:", error);
+    res.status(500).json({ error: error.message || "Failed to update service." });
+  }
+});
+
+app.delete('/api/services/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { accessToken } = req.body;
+    const client = getRequestSupabase(accessToken);
+
+    if (client) {
+      const { error } = await client
+        .from('services')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        if (isTableMissingError(error)) {
+          inMemoryServices = inMemoryServices.filter(s => String(s.id) !== String(id));
+          return res.json({ success: true });
+        }
+        throw error;
+      }
+      return res.json({ success: true });
+    }
+
+    inMemoryServices = inMemoryServices.filter(s => String(s.id) !== String(id));
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("Delete Service Error:", error);
+    res.status(500).json({ error: error.message || "Failed to delete service." });
+  }
+});
+
+// --- LOOKBOOK ENDPOINTS ---
+
+app.get('/api/lookbook', async (req, res) => {
+  try {
+    const { accessToken } = req.query;
+    const client = getRequestSupabase(accessToken);
+
+    if (client) {
+      const { data, error } = await client
+        .from('lookbook')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        if (isTableMissingError(error)) return res.json(inMemoryLookbook);
+        throw error;
+      }
+      return res.json(data || []);
+    }
+
+    return res.json(inMemoryLookbook);
+  } catch (error) {
+    console.error("Fetch Lookbook Error:", error);
+    res.status(500).json({ error: "Failed to fetch lookbook images." });
+  }
+});
+
+app.post('/api/lookbook', async (req, res) => {
+  try {
+    const { src, alt, accessToken } = req.body;
+    const client = getRequestSupabase(accessToken);
+
+    if (client) {
+      const { data, error } = await client
+        .from('lookbook')
+        .insert([{ src, alt }])
+        .select();
+
+      if (error) {
+        if (isTableMissingError(error)) {
+          const newImg = { id: nextLookbookId++, src, alt };
+          inMemoryLookbook.unshift(newImg); // add to top
+          return res.json({ success: true, data: [newImg] });
+        }
+        throw error;
+      }
+      return res.json({ success: true, data });
+    }
+
+    const newImg = { id: nextLookbookId++, src, alt };
+    inMemoryLookbook.unshift(newImg);
+    return res.json({ success: true, data: [newImg] });
+  } catch (error) {
+    console.error("Add Lookbook Image Error:", error);
+    res.status(500).json({ error: error.message || "Failed to add image." });
+  }
+});
+
+app.delete('/api/lookbook/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { accessToken } = req.body;
+    const client = getRequestSupabase(accessToken);
+
+    if (client) {
+      const { error } = await client
+        .from('lookbook')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        if (isTableMissingError(error)) {
+          inMemoryLookbook = inMemoryLookbook.filter(img => String(img.id) !== String(id));
+          return res.json({ success: true });
+        }
+        throw error;
+      }
+      return res.json({ success: true });
+    }
+
+    inMemoryLookbook = inMemoryLookbook.filter(img => String(img.id) !== String(id));
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("Delete Lookbook Image Error:", error);
+    res.status(500).json({ error: error.message || "Failed to delete image." });
   }
 });
 
