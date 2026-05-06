@@ -13,6 +13,7 @@ interface Service {
     category: string;
     price: string;
     duration: number;
+    description?: string;
 }
 
 export default function AdminServices() {
@@ -24,9 +25,10 @@ export default function AdminServices() {
     const [showAddForm, setShowAddForm] = useState(false);
     const [newService, setNewService] = useState({
         name: "",
-        category: "Men",
+        category: "Men - Hair",
         price: "",
-        duration: 30
+        duration: 30 as number | string,
+        description: ""
     });
 
     // Editing state
@@ -62,7 +64,7 @@ export default function AdminServices() {
             });
             if (!response.ok) throw new Error("Failed to add service");
             setShowAddForm(false);
-            setNewService({ name: "", category: "Men", price: "", duration: 30 });
+            setNewService({ name: "", category: "Men - Hair", price: "", duration: 30, description: "" });
             fetchServices();
         } catch (err) {
             alert(err instanceof Error ? err.message : "Failed to add service");
@@ -135,8 +137,8 @@ export default function AdminServices() {
                                     key={item.name}
                                     href={item.href}
                                     className={`flex items-center gap-3 px-4 py-3 rounded-md font-medium text-sm transition ${active
-                                            ? "bg-stone-50 text-[#C69C6D] font-semibold"
-                                            : "text-stone-500 hover:bg-stone-50 hover:text-stone-700"
+                                        ? "bg-stone-50 text-[#C69C6D] font-semibold"
+                                        : "text-stone-500 hover:bg-stone-50 hover:text-stone-700"
                                         }`}
                                 >
                                     <Icon className="w-4 h-4" />
@@ -200,8 +202,17 @@ export default function AdminServices() {
                                                 value={newService.category}
                                                 onChange={(e) => setNewService({ ...newService, category: e.target.value })}
                                             >
-                                                <option value="Men">Men</option>
-                                                <option value="Women">Women</option>
+                                                <optgroup label="Men">
+                                                    <option value="Men - Face">Face</option>
+                                                    <option value="Men - Hair">Hair</option>
+                                                    <option value="Men - Bridal Full">Bridal Full</option>
+                                                </optgroup>
+                                                <optgroup label="Women">
+                                                    <option value="Women - Face">Face</option>
+                                                    <option value="Women - Hair">Hair</option>
+                                                    <option value="Women - Nails">Nails</option>
+                                                    <option value="Women - Bridal Full">Bridal Full</option>
+                                                </optgroup>
                                             </select>
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
@@ -222,10 +233,19 @@ export default function AdminServices() {
                                                     type="number"
                                                     required
                                                     className="w-full border border-stone-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#C69C6D] outline-none"
-                                                    value={newService.duration}
-                                                    onChange={(e) => setNewService({ ...newService, duration: parseInt(e.target.value) })}
+                                                    value={newService.duration || ""}
+                                                    onChange={(e) => setNewService({ ...newService, duration: e.target.value === "" ? ("" as any) : parseInt(e.target.value) })}
                                                 />
                                             </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-1">Description (Optional)</label>
+                                            <textarea
+                                                className="w-full border border-stone-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#C69C6D] outline-none min-h-[80px]"
+                                                value={newService.description || ""}
+                                                onChange={(e) => setNewService({ ...newService, description: e.target.value })}
+                                                placeholder="e.g. A professional service tailored to your style."
+                                            />
                                         </div>
                                         <button
                                             type="submit"
@@ -264,14 +284,27 @@ export default function AdminServices() {
                                             <tr key={service.id} className="hover:bg-stone-50 transition">
                                                 <td className="px-6 py-4">
                                                     {editingId === service.id && editForm ? (
-                                                        <input
-                                                            type="text"
-                                                            className="w-full border border-stone-200 rounded px-2 py-1"
-                                                            value={editForm.name}
-                                                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                                                        />
+                                                        <div className="space-y-2">
+                                                            <input
+                                                                type="text"
+                                                                className="w-full border border-stone-200 rounded px-2 py-1"
+                                                                value={editForm.name}
+                                                                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                                            />
+                                                            <textarea
+                                                                className="w-full border border-stone-200 rounded px-2 py-1 text-xs text-stone-500 min-h-[40px]"
+                                                                value={editForm.description || ""}
+                                                                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                                                placeholder="Description..."
+                                                            />
+                                                        </div>
                                                     ) : (
-                                                        <span className="font-medium text-[#3E2723]">{service.name}</span>
+                                                        <div>
+                                                            <span className="font-medium text-[#3E2723] block">{service.name}</span>
+                                                            {service.description && (
+                                                                <span className="text-xs text-stone-500 block mt-1 line-clamp-2" title={service.description}>{service.description}</span>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4">
@@ -281,11 +314,20 @@ export default function AdminServices() {
                                                             value={editForm.category}
                                                             onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
                                                         >
-                                                            <option value="Men">Men</option>
-                                                            <option value="Women">Women</option>
+                                                            <optgroup label="Men">
+                                                                <option value="Men - Face">Men - Face</option>
+                                                                <option value="Men - Hair">Men - Hair</option>
+                                                                <option value="Men - Bridal Full">Men - Bridal Full</option>
+                                                            </optgroup>
+                                                            <optgroup label="Women">
+                                                                <option value="Women - Face">Women - Face</option>
+                                                                <option value="Women - Hair">Women - Hair</option>
+                                                                <option value="Women - Nails">Women - Nails</option>
+                                                                <option value="Women - Bridal Full">Women - Bridal Full</option>
+                                                            </optgroup>
                                                         </select>
                                                     ) : (
-                                                        <span className={`text-[10px] uppercase tracking-widest px-2 py-1 rounded-full font-bold ${service.category === 'Men' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'
+                                                        <span className={`text-[10px] uppercase tracking-widest px-2 py-1 rounded-full font-bold ${service.category.startsWith('Men') ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'
                                                             }`}>
                                                             {service.category}
                                                         </span>
@@ -308,8 +350,8 @@ export default function AdminServices() {
                                                         <input
                                                             type="number"
                                                             className="w-full border border-stone-200 rounded px-2 py-1"
-                                                            value={editForm.duration}
-                                                            onChange={(e) => setEditForm({ ...editForm, duration: parseInt(e.target.value) })}
+                                                            value={editForm.duration || ""}
+                                                            onChange={(e) => setEditForm({ ...editForm, duration: e.target.value === "" ? ("" as any) : parseInt(e.target.value) })}
                                                         />
                                                     ) : (
                                                         `${service.duration} min`
