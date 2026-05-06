@@ -6,21 +6,6 @@ import { supabase } from "../utils/supabase";
 import Reviews from "./components/Reviews";
 import { motion, AnimatePresence } from "framer-motion";
 
-const lookBookImages = [
-  { src: "/customers/client-doing-hair-cut-barber-shop-salon_1303-20710.jpg", alt: "Barber shop styling" },
-  { src: "/customers/female-hairdresser.jpg", alt: "Beauty salon look" },
-  { src: "/customers/female-hairdresser-making-hairstyle-blonde-woman-beauty-salon_176420-4458.jpg", alt: "Blonde hairstyle" },
-  { src: "/customers/female-hairdresser-making-hairstyle-redhead-woman-beauty-salon_176420-4476.jpg", alt: "Redhead hairstyle" },
-  { src: "/customers/female-hairdresser-making-hairstyle-redhead-woman-beauty-salon_176420-4482.jpg", alt: "Elegant redhead styling" },
-  { src: "/customers/female-hairdresser-using-hairbrush-hair-dryer_329181-1929.jpg", alt: "Professional blow dry" },
-  { src: "/customers/pretty-cute-young.jpg", alt: "Happy client" },
-  { src: "/customers/professional-girl-hairdresser-makes-client-haircut-girl-is-sitting-mask-beauty-salon_343596-4444.jpg", alt: "Professional haircut" },
-  { src: "/customers/woman-washing-head-hairsalon_1157-27179.jpg", alt: "Hair wash treatment" },
-  { src: "/customers/young-beautiful-bride-is-standing-summer-park-with-bouquet-flowers.jpg", alt: "Bridal styling" },
-  { src: "/customers/young-man-barbershop-trimming.jpg", alt: "Men's grooming" },
-  { src: "/1.jpg", alt: "Master Artistry" },
-];
-
 const aboutFeatures = [
   {
     icon: (<svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>),
@@ -66,6 +51,32 @@ function HomeContent() {
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
   const heroImages = ["/1.jpg", "/2.jpg", "/3.jpg"];
 
+  // Dynamic Content States
+  const [servicesData, setServicesData] = useState<any[]>([]);
+  const [lookbookData, setLookbookData] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function fetchDynamicData() {
+      try {
+        const [servRes, lookRes] = await Promise.all([
+          fetch("http://localhost:5000/api/services"),
+          fetch("http://localhost:5000/api/lookbook")
+        ]);
+        if (servRes.ok) {
+          const sData = await servRes.json();
+          if (Array.isArray(sData)) setServicesData(sData);
+        }
+        if (lookRes.ok) {
+          const lData = await lookRes.json();
+          if (Array.isArray(lData)) setLookbookData(lData);
+        }
+      } catch (err) {
+        console.error("Error fetching dynamic data:", err);
+      }
+    }
+    fetchDynamicData();
+  }, []);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentHeroSlide((prev) => (prev + 1) % heroImages.length);
@@ -76,11 +87,21 @@ function HomeContent() {
   // Manual booking states
   const [manualForm, setManualForm] = useState({
     name: "",
-    category: "men",
-    service: "Adult Buzz Cut 60 min (Rs. 5000+)",
+    category: "men - hair",
+    service: "",
     date: "",
     time: "10:00 AM",
   });
+
+  useEffect(() => {
+    if (servicesData.length > 0 && !manualForm.service) { // set initial service when loaded
+      const initialCatSvc = servicesData.filter(s => s.category.toLowerCase() === manualForm.category)[0];
+      if (initialCatSvc) {
+        setManualForm(prev => ({ ...prev, service: `${initialCatSvc.name} ${initialCatSvc.duration} min (Rs. ${initialCatSvc.price})` }));
+      }
+    }
+  }, [servicesData, manualForm.category]);
+
   const [manualLoading, setManualLoading] = useState(false);
   const [manualSuccess, setManualSuccess] = useState(false);
 
@@ -216,6 +237,7 @@ function HomeContent() {
           service: manualForm.service,
           date: appointmentDate,
           userId: session.user.id,
+          userEmail: session.user.email,
           accessToken: session.access_token,
         }),
       });
@@ -261,6 +283,7 @@ function HomeContent() {
           message: input,
           history: chatLog,
           userId: session.user.id,
+          userEmail: session.user.email,
           accessToken: session.access_token,
         }),
       });
@@ -432,11 +455,30 @@ function HomeContent() {
                             <div className="relative">
                               <select
                                 value={manualForm.category}
-                                onChange={(e) => setManualForm({ ...manualForm, category: e.target.value, service: e.target.value === 'men' ? 'Adult Buzz Cut 60 min (Rs. 5000+)' : 'Women\'s Haircut (Rs. 6000+)' })}
+                                onChange={(e) => {
+                                  const cat = e.target.value;
+                                  const firstSvc = servicesData.filter(s => s.category.toLowerCase() === cat)[0];
+                                  setManualForm({
+                                    ...manualForm,
+                                    category: cat,
+                                    service: firstSvc ? `${firstSvc.name} ${firstSvc.duration} min (Rs. ${firstSvc.price})` : ''
+                                  });
+                                }}
                                 className="w-full bg-white border border-stone-200 px-5 py-4 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] focus:ring-1 focus:ring-[#C69C6D] transition-all font-serif appearance-none rounded-lg shadow-sm"
                               >
-                                <option value="men">Men's Styling</option>
-                                <option value="women">Women's Styling</option>
+                                <optgroup label="Men's Grooming">
+                                  <option value="men - face">Face</option>
+                                  <option value="men - hair">Hair</option>
+                                  <option value="men - bridal full">Bridal Full</option>
+                                  <option value="men">Other / General</option>
+                                </optgroup>
+                                <optgroup label="Women's Styling">
+                                  <option value="women - face">Face</option>
+                                  <option value="women - hair">Hair</option>
+                                  <option value="women - nails">Nails</option>
+                                  <option value="women - bridal full">Bridal Full</option>
+                                  <option value="women">Other / General</option>
+                                </optgroup>
                               </select>
                               <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-stone-400">
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -453,22 +495,13 @@ function HomeContent() {
                               onChange={(e) => setManualForm({ ...manualForm, service: e.target.value })}
                               className="w-full bg-white border border-stone-200 px-5 py-4 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] focus:ring-1 focus:ring-[#C69C6D] transition-all font-serif appearance-none rounded-lg shadow-sm"
                             >
-                              {manualForm.category === "women" ? (
-                                <>
-                                  <option value="Women's Haircut 60 min (Rs. 6000+)">Women's Haircut — 60 min (Rs. 6000+)</option>
-                                  <option value="Color & Highlights 120 min (Rs. 15000+)">Color & Highlights — 120 min (Rs. 15000+)</option>
-                                  <option value="Keratin Treatment 120 min (Rs. 25000+)">Keratin Treatment — 120 min (Rs. 25000+)</option>
-                                  <option value="Bridal Package 180 min (Rs. 50000+)">Bridal Package — 180 min (Rs. 50000+)</option>
-                                  <option value="Consultation 30 min (Rs. 2000)">Consultation — 30 min (Rs. 2000)</option>
-                                </>
-                              ) : (
-                                <>
-                                  <option value="Adult Buzz Cut 60 min (Rs. 5000+)">Adult Buzz Cut — 60 min (Rs. 5000+)</option>
-                                  <option value="Clean Up - Beard & Neck Trim 15 min (Rs. 2500+)">Clean Up — 15 min (Rs. 2500+)</option>
-                                  <option value="Gent hair cut 30 min (Rs. 4000+)">Gent Haircut — 30 min (Rs. 4000+)</option>
-                                  <option value="Color & Highlights 60 min (Rs. 10000+)">Color & Highlights — 60 min (Rs. 10000+)</option>
-                                  <option value="Consultation 15 min (Rs. 2000)">Consultation — 15 min (Rs. 2000)</option>
-                                </>
+                              {servicesData.filter(s => s.category.toLowerCase() === manualForm.category).map(s => (
+                                <option key={s.id} value={`${s.name} ${s.duration} min (Rs. ${s.price})`}>
+                                  {s.name} — {s.duration} min (Rs. {s.price})
+                                </option>
+                              ))}
+                              {servicesData.filter(s => s.category.toLowerCase() === manualForm.category).length === 0 && (
+                                <option disabled>Loading...</option>
                               )}
                             </select>
                             <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-stone-400">
@@ -643,7 +676,8 @@ function HomeContent() {
 
           </div>
         </div>
-      )}
+      )
+      }
 
 
       {/* Hero Section */}
@@ -821,32 +855,38 @@ function HomeContent() {
             <div className="lg:col-span-2 space-y-12">
               <div className="bg-white border border-stone-100 p-10 md:p-16 shadow-sm">
                 <div className="flex flex-col md:flex-row gap-16">
-                  {aboutServices.map((group) => (
-                    <div key={group.category} className="flex-1">
-                      <h3 className="text-2xl font-serif text-[#3E2723] mb-8 pb-4 border-b border-stone-100 flex items-center gap-3">
-                        <span className="w-10 h-10 bg-[#C69C6D]/10 rounded-full flex items-center justify-center">
-                          {group.category === "Men" ? (
-                            <svg className="w-5 h-5 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                          ) : (
-                            <svg className="w-5 h-5 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
-                          )}
-                        </span>
-                        {group.category}
-                      </h3>
-                      <ul className="space-y-4">
-                        {group.items.map((item) => (
-                          <li key={item} className="flex items-center gap-4 text-stone-600 group cursor-default">
-                            <span className="w-2 h-2 bg-[#C69C6D] rounded-full group-hover:scale-125 transition-transform duration-300" />
-                            <span className="text-sm font-medium tracking-wide group-hover:text-[#3E2723] transition-colors">{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+                  {["Men", "Women"].map((catName) => {
+                    const catItems = servicesData.filter(s => s.category.startsWith(catName));
+                    if (catItems.length === 0) return null;
+                    return (
+                      <div key={catName} className="flex-1">
+                        <h3 className="text-2xl font-serif text-[#3E2723] mb-8 pb-4 border-b border-stone-100 flex items-center gap-3">
+                          <span className="w-10 h-10 bg-[#C69C6D]/10 rounded-full flex items-center justify-center">
+                            {catName === "Men" ? (
+                              <svg className="w-5 h-5 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                            ) : (
+                              <svg className="w-5 h-5 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                              </svg>
+                            )}
+                          </span>
+                          {catName}
+                        </h3>
+                        <ul className="space-y-4">
+                          {catItems.map((item) => (
+                            <li key={item.id} className="flex items-center gap-4 text-stone-600 group cursor-default">
+                              <span className="w-2 h-2 bg-[#C69C6D] rounded-full group-hover:scale-125 transition-transform duration-300" />
+                              <span className="text-sm font-medium tracking-wide group-hover:text-[#3E2723] transition-colors">
+                                {item.name} <span className="text-stone-400 text-xs ml-2">(Rs. {item.price})</span>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )
+                  })}
                 </div>
                 <div className="mt-12 pt-8 border-t border-stone-100 text-center">
                   <a
@@ -941,7 +981,7 @@ function HomeContent() {
             </motion.p>
           </div>
           <div className="columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6">
-            {lookBookImages.map((img, idx) => (
+            {lookbookData.map((img, idx) => (
               <motion.div
                 key={idx}
                 initial={{ opacity: 0, y: 20 }}
@@ -952,7 +992,7 @@ function HomeContent() {
               >
                 <Image
                   src={img.src}
-                  alt={img.alt}
+                  alt={img.alt || "Lookbook Image"}
                   width={600}
                   height={400}
                   className="w-full object-cover transition-transform duration-700 group-hover:scale-110"
@@ -1036,32 +1076,6 @@ function HomeContent() {
         />
       </section>
 
-      {/* CTA Section */}
-      <section className="bg-[#3E2723] py-20 px-6 md:px-12 text-center">
-        <div className="max-w-3xl mx-auto">
-          <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">Ready?</p>
-          <h2 className="text-3xl md:text-4xl font-serif text-white mb-6">
-            Book Your Appointment Today
-          </h2>
-          <p className="text-stone-400 mb-10 max-w-xl mx-auto leading-relaxed">
-            Whether it&apos;s a fresh cut, a stunning color, or bridal glam — we&apos;re here to make it happen.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={() => handleBookingAction("manual")}
-              className="bg-[#C69C6D] text-white px-8 py-4 tracking-[0.15em] uppercase text-sm font-medium hover:bg-[#B38759] transition-all duration-300"
-            >
-              Book Now
-            </button>
-            <button
-              onClick={() => handleBookingAction("ai")}
-              className="border border-white/30 text-white px-8 py-4 tracking-[0.15em] uppercase text-sm font-medium backdrop-blur-sm bg-white/5 hover:bg-white/15 transition-all duration-300"
-            >
-              Consult AI Assistant
-            </button>
-          </div>
-        </div>
-      </section>
 
     </main >
   );

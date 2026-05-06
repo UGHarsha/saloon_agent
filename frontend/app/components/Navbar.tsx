@@ -2,30 +2,58 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { supabase } from "../../utils/supabase";
 import { User } from "@supabase/supabase-js";
-import { Menu, X, Scissors } from "lucide-react";
+import { Menu, X, Scissors, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [showNavbar, setShowNavbar] = useState(true);
+  const prevScrollPos = useRef(0);
   const pathname = usePathname();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      // Check if user is admin
+      if (currentUser) {
+        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+        const isUserAdmin = currentUser.user_metadata?.role === 'admin' || currentUser.email === adminEmail;
+        setIsAdmin(isUserAdmin);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+        const isUserAdmin = currentUser.user_metadata?.role === 'admin' || currentUser.email === adminEmail;
+        setIsAdmin(isUserAdmin);
+      } else {
+        setIsAdmin(false);
+      }
     });
 
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      const currentScrollPos = window.scrollY;
+      setScrolled(currentScrollPos > 20);
+
+      if (currentScrollPos > prevScrollPos.current && currentScrollPos > 80) {
+        setShowNavbar(false);
+      } else {
+        setShowNavbar(true);
+      }
+      prevScrollPos.current = currentScrollPos;
     };
     window.addEventListener("scroll", handleScroll);
 
@@ -52,6 +80,10 @@ export default function Navbar() {
     navLinks.push({ name: "Appointments", href: "/bookings" });
   }
 
+  if (pathname?.startsWith("/admin")) {
+    return null;
+  }
+
   const isSolid = scrolled || pathname !== "/";
 
   return (
@@ -59,7 +91,7 @@ export default function Navbar() {
       className={`fixed top-0 w-full z-50 transition-all duration-300 ${isSolid
         ? "bg-white/80 backdrop-blur-md border-b border-stone-200 py-3 shadow-sm"
         : "bg-transparent py-5"
-        }`}
+        } ${showNavbar ? "translate-y-0" : "-translate-y-full"}`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
@@ -108,6 +140,16 @@ export default function Navbar() {
 
             {user ? (
               <>
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    className={`text-sm font-medium uppercase tracking-widest transition-colors flex items-center gap-2 ${isSolid ? "text-[#C69C6D] hover:text-[#B8885F]" : "text-[#C69C6D] hover:text-[#B8885F]"
+                      }`}
+                  >
+                    <Shield className="w-4 h-4" />
+                    Admin Panel
+                  </Link>
+                )}
                 <button
                   onClick={handleLogout}
                   className={`text-sm font-medium uppercase tracking-widest transition-colors ${isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
@@ -171,6 +213,16 @@ export default function Navbar() {
             <div className="pt-4 flex flex-col space-y-4">
               {user ? (
                 <>
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      onClick={toggleMenu}
+                      className="text-lg font-medium text-[#C69C6D] flex items-center gap-2 border-b border-stone-100 pb-4"
+                    >
+                      <Shield className="w-5 h-5" />
+                      Admin Panel
+                    </Link>
+                  )}
                   <button
                     onClick={() => {
                       handleLogout();
