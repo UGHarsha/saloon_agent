@@ -6,21 +6,6 @@ import { supabase } from "../utils/supabase";
 import Reviews from "./components/Reviews";
 import { motion, AnimatePresence } from "framer-motion";
 
-const lookBookImages = [
-  { src: "/customers/client-doing-hair-cut-barber-shop-salon_1303-20710.jpg", alt: "Barber shop styling" },
-  { src: "/customers/female-hairdresser.jpg", alt: "Beauty salon look" },
-  { src: "/customers/female-hairdresser-making-hairstyle-blonde-woman-beauty-salon_176420-4458.jpg", alt: "Blonde hairstyle" },
-  { src: "/customers/female-hairdresser-making-hairstyle-redhead-woman-beauty-salon_176420-4476.jpg", alt: "Redhead hairstyle" },
-  { src: "/customers/female-hairdresser-making-hairstyle-redhead-woman-beauty-salon_176420-4482.jpg", alt: "Elegant redhead styling" },
-  { src: "/customers/female-hairdresser-using-hairbrush-hair-dryer_329181-1929.jpg", alt: "Professional blow dry" },
-  { src: "/customers/pretty-cute-young.jpg", alt: "Happy client" },
-  { src: "/customers/professional-girl-hairdresser-makes-client-haircut-girl-is-sitting-mask-beauty-salon_343596-4444.jpg", alt: "Professional haircut" },
-  { src: "/customers/woman-washing-head-hairsalon_1157-27179.jpg", alt: "Hair wash treatment" },
-  { src: "/customers/young-beautiful-bride-is-standing-summer-park-with-bouquet-flowers.jpg", alt: "Bridal styling" },
-  { src: "/customers/young-man-barbershop-trimming.jpg", alt: "Men's grooming" },
-  { src: "/1.jpg", alt: "Master Artistry" },
-];
-
 const aboutFeatures = [
   {
     icon: (<svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>),
@@ -68,7 +53,7 @@ function HomeContent() {
 
   // Dynamic Content States
   const [servicesData, setServicesData] = useState<any[]>([]);
-  const [lookbookData, setLookbookData] = useState<any[]>(lookBookImages);
+  const [lookbookData, setLookbookData] = useState<any[]>([]);
 
   useEffect(() => {
     async function fetchDynamicData() {
@@ -79,11 +64,11 @@ function HomeContent() {
         ]);
         if (servRes.ok) {
           const sData = await servRes.json();
-          if (sData.length > 0) setServicesData(sData);
+          if (Array.isArray(sData)) setServicesData(sData);
         }
         if (lookRes.ok) {
           const lData = await lookRes.json();
-          if (lData.length > 0) setLookbookData(lData);
+          if (Array.isArray(lData)) setLookbookData(lData);
         }
       } catch (err) {
         console.error("Error fetching dynamic data:", err);
@@ -102,7 +87,7 @@ function HomeContent() {
   // Manual booking states
   const [manualForm, setManualForm] = useState({
     name: "",
-    category: "men",
+    category: "men - hair",
     service: "",
     date: "",
     time: "10:00 AM",
@@ -481,8 +466,19 @@ function HomeContent() {
                                 }}
                                 className="w-full bg-white border border-stone-200 px-5 py-4 text-[#3E2723] focus:outline-none focus:border-[#C69C6D] focus:ring-1 focus:ring-[#C69C6D] transition-all font-serif appearance-none rounded-lg shadow-sm"
                               >
-                                <option value="men">Men's Styling</option>
-                                <option value="women">Women's Styling</option>
+                                <optgroup label="Men's Grooming">
+                                  <option value="men - face">Face</option>
+                                  <option value="men - hair">Hair</option>
+                                  <option value="men - bridal full">Bridal Full</option>
+                                  <option value="men">Other / General</option>
+                                </optgroup>
+                                <optgroup label="Women's Styling">
+                                  <option value="women - face">Face</option>
+                                  <option value="women - hair">Hair</option>
+                                  <option value="women - nails">Nails</option>
+                                  <option value="women - bridal full">Bridal Full</option>
+                                  <option value="women">Other / General</option>
+                                </optgroup>
                               </select>
                               <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-stone-400">
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -680,7 +676,8 @@ function HomeContent() {
 
           </div>
         </div>
-      )}
+      )
+      }
 
 
       {/* Hero Section */}
@@ -859,7 +856,7 @@ function HomeContent() {
               <div className="bg-white border border-stone-100 p-10 md:p-16 shadow-sm">
                 <div className="flex flex-col md:flex-row gap-16">
                   {["Men", "Women"].map((catName) => {
-                    const catItems = servicesData.filter(s => s.category === catName);
+                    const catItems = servicesData.filter(s => s.category.startsWith(catName));
                     if (catItems.length === 0) return null;
                     return (
                       <div key={catName} className="flex-1">
@@ -1079,32 +1076,6 @@ function HomeContent() {
         />
       </section>
 
-      {/* CTA Section */}
-      <section className="bg-[#3E2723] py-20 px-6 md:px-12 text-center">
-        <div className="max-w-3xl mx-auto">
-          <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold">Ready?</p>
-          <h2 className="text-3xl md:text-4xl font-serif text-white mb-6">
-            Book Your Appointment Today
-          </h2>
-          <p className="text-stone-400 mb-10 max-w-xl mx-auto leading-relaxed">
-            Whether it&apos;s a fresh cut, a stunning color, or bridal glam — we&apos;re here to make it happen.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={() => handleBookingAction("manual")}
-              className="bg-[#C69C6D] text-white px-8 py-4 tracking-[0.15em] uppercase text-sm font-medium hover:bg-[#B38759] transition-all duration-300"
-            >
-              Book Now
-            </button>
-            <button
-              onClick={() => handleBookingAction("ai")}
-              className="border border-white/30 text-white px-8 py-4 tracking-[0.15em] uppercase text-sm font-medium backdrop-blur-sm bg-white/5 hover:bg-white/15 transition-all duration-300"
-            >
-              Consult AI Assistant
-            </button>
-          </div>
-        </div>
-      </section>
 
     </main >
   );

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { supabase } from "../../utils/supabase";
 import { User } from "@supabase/supabase-js";
@@ -14,13 +14,15 @@ export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [showNavbar, setShowNavbar] = useState(true);
+  const prevScrollPos = useRef(0);
   const pathname = usePathname();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      
+
       // Check if user is admin
       if (currentUser) {
         const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
@@ -32,7 +34,7 @@ export default function Navbar() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      
+
       if (currentUser) {
         const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
         const isUserAdmin = currentUser.user_metadata?.role === 'admin' || currentUser.email === adminEmail;
@@ -43,7 +45,15 @@ export default function Navbar() {
     });
 
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      const currentScrollPos = window.scrollY;
+      setScrolled(currentScrollPos > 20);
+
+      if (currentScrollPos > prevScrollPos.current && currentScrollPos > 80) {
+        setShowNavbar(false);
+      } else {
+        setShowNavbar(true);
+      }
+      prevScrollPos.current = currentScrollPos;
     };
     window.addEventListener("scroll", handleScroll);
 
@@ -81,7 +91,7 @@ export default function Navbar() {
       className={`fixed top-0 w-full z-50 transition-all duration-300 ${isSolid
         ? "bg-white/80 backdrop-blur-md border-b border-stone-200 py-3 shadow-sm"
         : "bg-transparent py-5"
-        }`}
+        } ${showNavbar ? "translate-y-0" : "-translate-y-full"}`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">

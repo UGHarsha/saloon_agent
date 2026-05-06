@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
@@ -920,42 +921,6 @@ app.post('/api/delete-bookings', async (req, res) => {
   }
 });
 
-// --- IN-MEMORY FALLBACK ---
-let inMemoryServices = [
-  { id: 1, name: "Adult Buzz Cut", category: "Men", price: "5000", duration: 60 },
-  { id: 2, name: "Clean Up - Beard & Neck Trim", category: "Men", price: "2500", duration: 15 },
-  { id: 3, name: "Gent hair cut", category: "Men", price: "4000", duration: 30 },
-  { id: 4, name: "Color & Highlights", category: "Men", price: "10000", duration: 60 },
-  { id: 5, name: "Consultation", category: "Men", price: "2000", duration: 15 },
-  { id: 6, name: "Women's Haircut", category: "Women", price: "6000", duration: 60 },
-  { id: 7, name: "Color & Highlights", category: "Women", price: "15000", duration: 120 },
-  { id: 8, name: "Keratin Treatment", category: "Women", price: "25000", duration: 120 },
-  { id: 9, name: "Bridal Package", category: "Women", price: "50000", duration: 180 },
-  { id: 10, name: "Consultation", category: "Women", price: "2000", duration: 30 },
-];
-let nextServiceId = 11;
-
-let inMemoryLookbook = [
-  { id: 1, src: "/customers/client-doing-hair-cut-barber-shop-salon_1303-20710.jpg", alt: "Barber shop styling" },
-  { id: 2, src: "/customers/female-hairdresser.jpg", alt: "Beauty salon look" },
-  { id: 3, src: "/customers/female-hairdresser-making-hairstyle-blonde-woman-beauty-salon_176420-4458.jpg", alt: "Blonde hairstyle" },
-  { id: 4, src: "/customers/female-hairdresser-making-hairstyle-redhead-woman-beauty-salon_176420-4476.jpg", alt: "Redhead hairstyle" },
-  { id: 5, src: "/customers/female-hairdresser-making-hairstyle-redhead-woman-beauty-salon_176420-4482.jpg", alt: "Elegant redhead styling" },
-  { id: 6, src: "/customers/female-hairdresser-using-hairbrush-hair-dryer_329181-1929.jpg", alt: "Professional blow dry" },
-  { id: 7, src: "/customers/pretty-cute-young.jpg", alt: "Happy client" },
-  { id: 8, src: "/customers/professional-girl-hairdresser-makes-client-haircut-girl-is-sitting-mask-beauty-salon_343596-4444.jpg", alt: "Professional haircut" },
-  { id: 9, src: "/customers/woman-washing-head-hairsalon_1157-27179.jpg", alt: "Hair wash treatment" },
-  { id: 10, src: "/customers/young-beautiful-bride-is-standing-summer-park-with-bouquet-flowers.jpg", alt: "Bridal styling" },
-  { id: 11, src: "/customers/young-man-barbershop-trimming.jpg", alt: "Men's grooming" },
-  { id: 12, src: "/1.jpg", alt: "Master Artistry" },
-];
-let nextLookbookId = 13;
-
-function isTableMissingError(error) {
-  const msg = String(error?.message || '').toLowerCase();
-  return msg.includes('schema cache') || msg.includes('does not exist') || msg.includes('relation');
-}
-
 // --- SERVICES ENDPOINTS ---
 
 app.get('/api/services', async (req, res) => {
@@ -963,20 +928,27 @@ app.get('/api/services', async (req, res) => {
     const { accessToken } = req.query;
     const client = getRequestSupabase(accessToken);
 
-    if (client) {
-      const { data, error } = await client
-        .from('services')
-        .select('*')
-        .order('category', { ascending: false })
-        .order('name', { ascending: true });
-
-      if (error) {
-        if (isTableMissingError(error)) return res.json(inMemoryServices);
-        throw error;
-      }
-      return res.json(data || []);
+    if (!client) {
+      throw new Error("Supabase client not initialized.");
     }
-    return res.json(inMemoryServices);
+
+    const { data, error } = await client
+      .from('services')
+      .select('*')
+      .order('category', { ascending: false })
+      .order('name', { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+    const mappedData = (data || []).map(s => {
+      if (s.name && s.name.includes('|||')) {
+        const [realName, desc] = s.name.split('|||');
+        return { ...s, name: realName, description: desc };
+      }
+      return s;
+    });
+    return res.json(mappedData);
   } catch (error) {
     console.error("Fetch Services Error:", error);
     res.status(500).json({ error: "Failed to fetch services." });
@@ -985,29 +957,27 @@ app.get('/api/services', async (req, res) => {
 
 app.post('/api/services', async (req, res) => {
   try {
-    const { name, category, price, duration, accessToken } = req.body;
+    const { name, category, price, duration, description, accessToken } = req.body;
     const client = getRequestSupabase(accessToken);
 
-    if (client) {
-      const { data, error } = await client
-        .from('services')
-        .insert([{ name, category, price, duration }])
-        .select();
-
-      if (error) {
-        if (isTableMissingError(error)) {
-          const newSvc = { id: nextServiceId++, name, category, price, duration };
-          inMemoryServices.push(newSvc);
-          return res.json({ success: true, data: [newSvc] });
-        }
-        throw error;
-      }
-      return res.json({ success: true, data });
+    if (!client) {
+      throw new Error("Supabase client not initialized.");
     }
 
-    const newSvc = { id: nextServiceId++, name, category, price, duration };
-    inMemoryServices.push(newSvc);
-    return res.json({ success: true, data: [newSvc] });
+    let finalName = name;
+    if (description) {
+      finalName = `${name}|||${description}`;
+    }
+
+    const { data, error } = await client
+      .from('services')
+      .insert([{ name: finalName, category, price, duration }])
+      .select();
+
+    if (error) {
+      throw error;
+    }
+    return res.json({ success: true, data });
   } catch (error) {
     console.error("Add Service Error:", error);
     res.status(500).json({ error: error.message || "Failed to add service." });
@@ -1017,30 +987,28 @@ app.post('/api/services', async (req, res) => {
 app.put('/api/services/:id', async (req, res) => {
   try {
     const id = req.params.id;
-    const { name, category, price, duration, accessToken } = req.body;
+    const { name, category, price, duration, description, accessToken } = req.body;
     const client = getRequestSupabase(accessToken);
 
-    if (client) {
-      const { data, error } = await client
-        .from('services')
-        .update({ name, category, price, duration })
-        .eq('id', id)
-        .select();
-
-      if (error) {
-        if (isTableMissingError(error)) {
-          const idx = inMemoryServices.findIndex(s => String(s.id) === String(id));
-          if (idx !== -1) inMemoryServices[idx] = { ...inMemoryServices[idx], name, category, price, duration };
-          return res.json({ success: true, data: inMemoryServices[idx] ? [inMemoryServices[idx]] : [] });
-        }
-        throw error;
-      }
-      return res.json({ success: true, data });
+    if (!client) {
+      throw new Error("Supabase client not initialized.");
     }
 
-    const idx = inMemoryServices.findIndex(s => String(s.id) === String(id));
-    if (idx !== -1) inMemoryServices[idx] = { ...inMemoryServices[idx], name, category, price, duration };
-    return res.json({ success: true, data: inMemoryServices[idx] ? [inMemoryServices[idx]] : [] });
+    let finalName = name;
+    if (description) {
+      finalName = `${name}|||${description}`;
+    }
+
+    const { data, error } = await client
+      .from('services')
+      .update({ name: finalName, category, price, duration })
+      .eq('id', id)
+      .select();
+
+    if (error) {
+      throw error;
+    }
+    return res.json({ success: true, data });
   } catch (error) {
     console.error("Update Service Error:", error);
     res.status(500).json({ error: error.message || "Failed to update service." });
@@ -1053,27 +1021,53 @@ app.delete('/api/services/:id', async (req, res) => {
     const { accessToken } = req.body;
     const client = getRequestSupabase(accessToken);
 
-    if (client) {
-      const { error } = await client
-        .from('services')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        if (isTableMissingError(error)) {
-          inMemoryServices = inMemoryServices.filter(s => String(s.id) !== String(id));
-          return res.json({ success: true });
-        }
-        throw error;
-      }
-      return res.json({ success: true });
+    if (!client) {
+      throw new Error("Supabase client not initialized.");
     }
 
-    inMemoryServices = inMemoryServices.filter(s => String(s.id) !== String(id));
+    const { error } = await client
+      .from('services')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw error;
+    }
     return res.json({ success: true });
   } catch (error) {
     console.error("Delete Service Error:", error);
     res.status(500).json({ error: error.message || "Failed to delete service." });
+  }
+});
+
+// --- UPLOAD ENDPOINT ---
+app.post('/api/upload', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { accessToken } = req.body;
+    // Basic verification without strictly failing to allow local testing
+
+    // We will save to frontend/public/uploads
+    const uploadDir = path.join(__dirname, '../frontend/public/customers');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const filename = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`;
+    const filePath = path.join(uploadDir, filename);
+
+    fs.writeFileSync(filePath, req.file.buffer);
+
+    return res.json({
+      success: true,
+      url: `/customers/${filename}`
+    });
+  } catch (error) {
+    console.error("Upload error:", error);
+    res.status(500).json({ error: "Failed to upload image" });
   }
 });
 
@@ -1084,20 +1078,19 @@ app.get('/api/lookbook', async (req, res) => {
     const { accessToken } = req.query;
     const client = getRequestSupabase(accessToken);
 
-    if (client) {
-      const { data, error } = await client
-        .from('lookbook')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        if (isTableMissingError(error)) return res.json(inMemoryLookbook);
-        throw error;
-      }
-      return res.json(data || []);
+    if (!client) {
+      throw new Error("Supabase client not initialized.");
     }
 
-    return res.json(inMemoryLookbook);
+    const { data, error } = await client
+      .from('lookbook')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+    return res.json(data || []);
   } catch (error) {
     console.error("Fetch Lookbook Error:", error);
     res.status(500).json({ error: "Failed to fetch lookbook images." });
@@ -1109,26 +1102,19 @@ app.post('/api/lookbook', async (req, res) => {
     const { src, alt, accessToken } = req.body;
     const client = getRequestSupabase(accessToken);
 
-    if (client) {
-      const { data, error } = await client
-        .from('lookbook')
-        .insert([{ src, alt }])
-        .select();
-
-      if (error) {
-        if (isTableMissingError(error)) {
-          const newImg = { id: nextLookbookId++, src, alt };
-          inMemoryLookbook.unshift(newImg); // add to top
-          return res.json({ success: true, data: [newImg] });
-        }
-        throw error;
-      }
-      return res.json({ success: true, data });
+    if (!client) {
+      throw new Error("Supabase client not initialized.");
     }
 
-    const newImg = { id: nextLookbookId++, src, alt };
-    inMemoryLookbook.unshift(newImg);
-    return res.json({ success: true, data: [newImg] });
+    const { data, error } = await client
+      .from('lookbook')
+      .insert([{ src, alt }])
+      .select();
+
+    if (error) {
+      throw error;
+    }
+    return res.json({ success: true, data });
   } catch (error) {
     console.error("Add Lookbook Image Error:", error);
     res.status(500).json({ error: error.message || "Failed to add image." });
@@ -1141,23 +1127,18 @@ app.delete('/api/lookbook/:id', async (req, res) => {
     const { accessToken } = req.body;
     const client = getRequestSupabase(accessToken);
 
-    if (client) {
-      const { error } = await client
-        .from('lookbook')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        if (isTableMissingError(error)) {
-          inMemoryLookbook = inMemoryLookbook.filter(img => String(img.id) !== String(id));
-          return res.json({ success: true });
-        }
-        throw error;
-      }
-      return res.json({ success: true });
+    if (!client) {
+      throw new Error("Supabase client not initialized.");
     }
 
-    inMemoryLookbook = inMemoryLookbook.filter(img => String(img.id) !== String(id));
+    const { error } = await client
+      .from('lookbook')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw error;
+    }
     return res.json({ success: true });
   } catch (error) {
     console.error("Delete Lookbook Image Error:", error);

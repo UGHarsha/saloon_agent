@@ -24,6 +24,8 @@ export default function AdminLookbook() {
         src: "",
         alt: ""
     });
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [uploading, setUploading] = useState(false);
 
     const fetchImages = async () => {
         try {
@@ -46,18 +48,44 @@ export default function AdminLookbook() {
     const handleAddImage = async (e: FormEvent) => {
         e.preventDefault();
         try {
+            setUploading(true);
             const { data: { session } } = await supabase.auth.getSession();
+            let finalSrc = newImage.src;
+
+            // If a file is selected, upload it first
+            if (selectedFile) {
+                const formData = new FormData();
+                formData.append('image', selectedFile);
+                if (session?.access_token) {
+                    formData.append('accessToken', session.access_token);
+                }
+
+                const uploadResponse = await fetch("http://localhost:5000/api/upload", {
+                    method: "POST",
+                    body: formData
+                });
+                
+                if (!uploadResponse.ok) throw new Error("Failed to upload image");
+                const uploadData = await uploadResponse.json();
+                finalSrc = uploadData.url;
+            }
+
             const response = await fetch("http://localhost:5000/api/lookbook", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...newImage, accessToken: session?.access_token })
+                body: JSON.stringify({ src: finalSrc, alt: newImage.alt, accessToken: session?.access_token })
             });
-            if (!response.ok) throw new Error("Failed to add image");
+
+            if (!response.ok) throw new Error("Failed to add image to lookbook");
+            
             setShowAddForm(false);
             setNewImage({ src: "", alt: "" });
+            setSelectedFile(null);
             fetchImages();
         } catch (err) {
             alert(err instanceof Error ? err.message : "Failed to add image");
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -151,16 +179,35 @@ export default function AdminLookbook() {
                                     </div>
                                     <form onSubmit={handleAddImage} className="p-6 space-y-4">
                                         <div>
-                                            <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-1">Image URL</label>
+                                            <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-1">Select Image File</label>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="w-full border border-stone-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#C69C6D] outline-none mb-3"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) {
+                                                        setSelectedFile(file);
+                                                        setNewImage({ ...newImage, src: file.name }); // Temporary visual indication
+                                                    }
+                                                }}
+                                            />
+                                            <div className="flex items-center my-2">
+                                                <div className="flex-1 border-t border-stone-200"></div>
+                                                <span className="px-3 text-xs text-stone-400 font-bold uppercase">OR</span>
+                                                <div className="flex-1 border-t border-stone-200"></div>
+                                            </div>
+                                            <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-1">Enter Image URL Directly</label>
                                             <input
                                                 type="text"
-                                                required
+                                                required={!selectedFile}
                                                 className="w-full border border-stone-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#C69C6D] outline-none"
                                                 value={newImage.src}
                                                 onChange={(e) => setNewImage({ ...newImage, src: e.target.value })}
                                                 placeholder="e.g. /customers/new-look.jpg or https://..."
+                                                disabled={!!selectedFile}
                                             />
-                                            <p className="mt-1 text-[10px] text-stone-400">Provide a path relative to /public or an absolute URL</p>
+                                            <p className="mt-1 text-[10px] text-stone-400">Provide a URL if not uploading a file</p>
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-1">Alt Text (Description)</label>
@@ -175,9 +222,10 @@ export default function AdminLookbook() {
                                         </div>
                                         <button
                                             type="submit"
-                                            className="w-full bg-[#3E2723] text-white py-4 rounded-lg font-bold hover:bg-[#5D3A32] transition mt-4"
+                                            disabled={uploading}
+                                            className="w-full bg-[#3E2723] text-white py-4 rounded-lg font-bold hover:bg-[#5D3A32] transition mt-4 disabled:opacity-50"
                                         >
-                                            Add to Lookbook
+                                            {uploading ? "Uploading..." : "Add to Lookbook"}
                                         </button>
                                     </form>
                                 </div>
