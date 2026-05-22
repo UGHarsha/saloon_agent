@@ -490,8 +490,11 @@ async function pollPaintingResult(inferenceId, picsartApiKey) {
   throw new Error('Picsart result polling timed out. Please try again.');
 }
 
-async function runPicsartRecolor(file, naturalTargetColorHex, picsartApiKey) {
-  const prompt = `Change only the person's hair color to #${naturalTargetColorHex}. Keep skin tone, face shape, background, clothing, and hairstyle unchanged. Make it photorealistic.`;
+async function runPicsartRecolor(file, colorQuery, naturalTargetColorHex, picsartApiKey) {
+  // If colorQuery looks like a hex code, use just the hex. Otherwise mention the color name and the hex.
+  const isHexOnly = /^#?[0-9A-Fa-f]{3,6}$/.test(colorQuery);
+  const colorPhrase = isHexOnly ? `#${naturalTargetColorHex}` : `${colorQuery} tone (color matched as #${naturalTargetColorHex})`;
+  const prompt = `Perfectly recolor ONLY the hair to ${colorPhrase}. The person's face, facial features, skin tone, clothing, hairstyle structure, and the entire background MUST remain 100% identical to the original image. Do not change anything except the hair color.`;
 
   const form = new FormData();
   form.append('image', file.buffer, {
@@ -499,6 +502,7 @@ async function runPicsartRecolor(file, naturalTargetColorHex, picsartApiKey) {
     contentType: file.mimetype,
   });
   form.append('prompt', prompt);
+  form.append('negative_prompt', 'new face, different identity, changed facial features, altered background, different clothing, different hairstyle, deformed, blur');
   form.append('count', '1');
   form.append('format', 'PNG');
 
@@ -784,11 +788,11 @@ app.post('/api/recolor-hair', upload.single('image'), async (req, res) => {
     const targetColorHex = req.body.color || "8D3127";
     const naturalTargetColorHex = toNaturalHairHex(targetColorHex);
 
-    console.log(`Processing hair recolor request to Hex: ${targetColorHex} (naturalized: ${naturalTargetColorHex}) with Picsart...`);
+    console.log(`Processing hair recolor request to Hex/Color: ${targetColorHex} (naturalized: ${naturalTargetColorHex}) with Picsart...`);
 
     let recoloredImageUrl = null;
     try {
-      recoloredImageUrl = await runPicsartRecolor(req.file, naturalTargetColorHex, picsartApiKey);
+      recoloredImageUrl = await runPicsartRecolor(req.file, targetColorHex, naturalTargetColorHex, picsartApiKey);
     } catch (picsartError) {
       const reason = picsartError instanceof Error ? picsartError.message : 'Unknown Picsart failure';
       console.error('Picsart API Error:', reason);
