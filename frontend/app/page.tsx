@@ -803,7 +803,7 @@ function HomeContent() {
                 <p className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-bold mb-4">Founder & Creative Director</p>
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-2xl bg-stone-200 overflow-hidden relative shadow-inner">
-                    <Image src="/customers/young-beautiful-bride-is-standing-summer-park-with-bouquet-flowers.jpg" alt="Director" fill sizes="56px" className="object-cover" />
+                    <Image src="/customers/1778774396808-672056452.jpg" alt="Director" fill sizes="56px" className="object-cover" />
                   </div>
                   <div>
                     <p className="text-lg font-serif text-[#3E2723]">Sarah Jenkins</p>
@@ -814,14 +814,7 @@ function HomeContent() {
 
               <div className="h-12 w-px bg-stone-200 hidden sm:block" />
 
-              <div className="flex flex-col gap-2">
-                <div className="flex -space-x-3">
-                  {[1, 2, 3, 4].map(i => (
-                    <div key={i} className="w-10 h-10 rounded-full border-2 border-[#FDFBF7] bg-stone-200 overflow-hidden relative shadow-md">
-                      <Image src={`/${i}.jpg`} alt="Client" fill sizes="40px" className="object-cover" />
-                    </div>
-                  ))}
-                </div>
+              <div>
                 <p className="text-[11px] text-stone-400 font-medium">Trusted by <span className="text-[#3E2723] font-bold">2,500+</span> individuals in Matara</p>
               </div>
             </div>
@@ -863,10 +856,7 @@ function HomeContent() {
               <p className="text-[#3E2723] font-serif text-lg leading-snug mb-3">
                 &quot;The atmosphere is unmatched. Truly the best salon experience I&apos;ve had.&quot;
               </p>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-stone-200 relative overflow-hidden">
-                  <Image src="/1.jpg" alt="Testimonial" fill className="object-cover" />
-                </div>
+              <div>
                 <div>
                   <p className="text-[10px] font-bold text-[#3E2723] uppercase tracking-wider">Elena Rodriguez</p>
                   <p className="text-[9px] text-stone-400 uppercase tracking-widest">Verified Client</p>
@@ -881,112 +871,112 @@ function HomeContent() {
       </section>
 
 
-      {/* Merged Services & Features Section */}
-      <section className="py-24 md:py-32 px-6 md:px-12 bg-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#C69C6D]/[0.03] rounded-full blur-[100px] -translate-y-1/2" />
-        <div className="max-w-7xl mx-auto relative">
+      {/* Merged Services & Features Section - Light Redesign */}
+      <section className="py-24 md:py-32 px-6 md:px-12 bg-[#FDFBF7] relative overflow-hidden">
+        {/* Background Accents */}
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#C69C6D]/[0.05] rounded-full blur-[120px] -translate-y-1/2" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#C69C6D]/[0.03] rounded-full blur-[100px] translate-y-1/3" />
+
+        <div className="max-w-7xl mx-auto relative z-10">
           {/* Section Header */}
-          <div className="text-center mb-20">
+          <div className="text-center mb-24">
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#C69C6D]/10 mb-6"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#C69C6D]/20 bg-[#C69C6D]/10 mb-6"
             >
-              <span className="text-[#C69C6D] tracking-[0.2em] uppercase text-[10px] font-bold">Excellence Preferred</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#C69C6D] animate-pulse" />
+              <span className="text-[#C69C6D] tracking-[0.2em] uppercase text-[10px] font-bold">Menu of Services</span>
             </motion.div>
             <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}
-              className="text-4xl md:text-5xl font-serif mb-6 leading-tight"
-            >Elevated Salon <span className="gradient-text">Experience</span></motion.h2>
+              className="text-4xl md:text-5xl lg:text-6xl font-serif mb-6 text-[#3E2723] leading-tight"
+            >
+              Elevated Salon <span className="gradient-text italic">Experience</span>
+            </motion.h2>
             <motion.p initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}
-              className="text-stone-500 max-w-2xl mx-auto leading-relaxed"
-            >We combine world-class styling techniques with modern technology and premium care.</motion.p>
+              className="text-stone-600 max-w-2xl mx-auto leading-relaxed font-light"
+            >
+              We combine world-class styling techniques with modern technology and premium care to deliver unparalleled results.
+            </motion.p>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-8 lg:gap-10">
-            {/* Services List – Glass Card */}
-            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-              className="lg:col-span-2 bg-white rounded-3xl border border-stone-100 p-8 md:p-12 shadow-sm hover:shadow-xl transition-all duration-500"
-            >
-              <div className="flex flex-col md:flex-row gap-12">
-                {["Men", "Women"].map((catName) => {
+          <div className="grid lg:grid-cols-12 gap-12 lg:gap-16">
+            {/* Services Columns */}
+            <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-12">
+              <div className="grid md:grid-cols-2 gap-10">
+                {["Men", "Women"].map((catName, idx) => {
                   const catItems = servicesData.filter(s => s.category.startsWith(catName));
                   if (catItems.length === 0) return null;
                   return (
-                    <div key={catName} className="flex-1">
-                      <h3 className="text-xl font-serif text-[#3E2723] mb-6 pb-3 border-b border-stone-100 flex items-center gap-3">
-                        <span className="w-9 h-9 bg-gradient-to-br from-[#C69C6D]/20 to-[#C69C6D]/5 rounded-xl flex items-center justify-center">
+                    <motion.div
+                      key={catName}
+                      initial={{ opacity: 0, y: 30 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: idx * 0.2 }}
+                      className="flex-1"
+                    >
+                      <div className="mb-8 flex items-center gap-4 border-b border-stone-200 pb-4">
+                        <span className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center border border-stone-100 shadow-sm">
                           {catName === "Men" ? (
-                            <svg className="w-4 h-4 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                            <svg className="w-6 h-6 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" /></svg>
                           ) : (
-                            <svg className="w-4 h-4 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                            <svg className="w-6 h-6 text-[#C69C6D]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
                           )}
                         </span>
-                        {catName}
-                      </h3>
-                      <ul className="space-y-3">
-                        {catItems.map((item) => (
-                          <li key={item.id} className="flex items-center justify-between gap-4 text-stone-600 group cursor-default py-2 px-3 rounded-xl hover:bg-[#FDFBF7] transition-colors duration-300">
-                            <div className="flex items-center gap-3">
-                              <span className="w-1.5 h-1.5 bg-[#C69C6D] rounded-full group-hover:scale-150 transition-transform duration-300" />
-                              <span className="text-sm font-medium group-hover:text-[#3E2723] transition-colors">{item.name}</span>
+                        <h3 className="text-2xl font-serif text-[#3E2723] uppercase tracking-widest">{catName}</h3>
+                      </div>
+
+                      <ul className="space-y-1">
+                        {catItems.map((item, i) => (
+                          <li key={item.id} className="group flex flex-col py-3 border-b border-stone-100 hover:border-[#C69C6D]/30 transition-colors duration-300 cursor-default">
+                            <div className="flex items-center justify-between gap-4 w-full">
+                              <span className="text-stone-600 font-medium group-hover:text-[#3E2723] transition-colors text-base">{item.name}</span>
+                              <div className="flex-1 border-b border-dashed border-stone-200 group-hover:border-[#C69C6D]/50 mx-4 transition-colors"></div>
+                              <span className="text-[#C69C6D] font-serif text-lg tracking-wide whitespace-nowrap">Rs. {item.price}</span>
                             </div>
-                            <span className="text-[#C69C6D] text-xs font-semibold whitespace-nowrap">Rs. {item.price}</span>
+                            <span className="text-[10px] uppercase tracking-[0.15em] text-stone-400 mt-1">{item.duration} Min</span>
                           </li>
                         ))}
                       </ul>
-                    </div>
+                    </motion.div>
                   )
                 })}
               </div>
-              <div className="mt-10 pt-6 border-t border-stone-100 text-center">
-                <a href="/services" className="inline-flex items-center gap-3 text-[#C69C6D] text-xs font-bold uppercase tracking-[0.2em] hover:gap-5 transition-all duration-300 group">
-                  View Full Menu
-                  <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-                </a>
-              </div>
-            </motion.div>
 
-            {/* Features Sidebar */}
-            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}
-              className="bg-gradient-to-b from-[#1A1210] to-[#2A1E1A] p-8 md:p-10 shadow-2xl rounded-3xl relative overflow-hidden flex flex-col justify-center"
+              <div className="pt-4 text-center md:text-left">
+                <Link href="/services" className="inline-flex items-center gap-3 text-white bg-gradient-to-r from-[#C69C6D] to-[#B38759] hover:from-[#B38759] hover:to-[#9B7047] px-8 py-4 rounded-full text-xs font-bold uppercase tracking-[0.2em] transition-all duration-300 group shadow-md hover:shadow-xl">
+                  Explore Full Menu
+                  <svg className="w-4 h-4 text-white group-hover:translate-x-2 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                </Link>
+              </div>
+            </div>
+
+            {/* Premium Features Sidebar */}
+            <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.4 }}
+              className="lg:col-span-5 xl:col-span-4"
             >
-              <div className="absolute top-0 right-0 w-40 h-40 bg-[#C69C6D]/8 rounded-full blur-[60px]" />
-              <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#C69C6D]/5 rounded-full blur-[40px]" />
-              <div className="relative z-10 space-y-10">
-                <div>
-                  <p className="text-[#C69C6D] tracking-[0.2em] uppercase text-[10px] mb-3 font-semibold">The Standard</p>
-                  <h3 className="text-2xl font-serif text-white leading-tight">Expertise &<br /><span className="gradient-text">Innovation</span></h3>
+              <div className="bg-white p-8 md:p-10 border border-stone-100 rounded-[32px] h-full flex flex-col justify-center relative overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-500">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#C69C6D]/10 rounded-full blur-[50px]" />
+
+                <div className="relative z-10 mb-10 border-b border-stone-100 pb-8">
+                  <p className="text-[#C69C6D] tracking-[0.25em] uppercase text-[10px] mb-2 font-bold">The Royal Standard</p>
+                  <h3 className="text-3xl font-serif text-[#3E2723] leading-tight">Expertise & <br /><span className="italic gradient-text">Innovation</span></h3>
                 </div>
-                <div className="space-y-8">
-                  {aboutFeatures.slice(2, 6).map((feature, idx) => (
-                    <motion.div key={idx} initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 + idx * 0.1 }}
-                      className="flex gap-4 group"
-                    >
-                      <div className="text-[#C69C6D] shrink-0 w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-[#C69C6D]/20 transition-colors duration-300">
+
+                <div className="space-y-8 relative z-10">
+                  {aboutFeatures.slice(2, 5).map((feature, idx) => (
+                    <div key={idx} className="flex gap-5 group">
+                      <div className="text-[#C69C6D] shrink-0 w-12 h-12 rounded-2xl bg-[#FDFBF7] border border-stone-100 flex items-center justify-center group-hover:bg-[#C69C6D]/10 group-hover:scale-110 transition-all duration-500 shadow-sm">
                         {feature.icon}
                       </div>
                       <div>
-                        <h5 className="text-white font-serif text-sm mb-1">{feature.title}</h5>
-                        <p className="text-stone-500 text-xs leading-relaxed">{feature.description}</p>
+                        <h5 className="text-[#3E2723] font-serif text-lg mb-1">{feature.title}</h5>
+                        <p className="text-stone-500 text-xs leading-relaxed font-light">{feature.description}</p>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               </div>
             </motion.div>
-          </div>
-
-          {/* Bottom Feature Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
-            {aboutFeatures.slice(0, 2).map((feature, idx) => (
-              <motion.div key={idx} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }}
-                className="flex gap-5 items-start p-6 rounded-2xl bg-[#FDFBF7] border border-stone-100 hover-lift"
-              >
-                <div className="text-[#C69C6D] bg-white p-3 rounded-xl shadow-sm border border-stone-50 shrink-0">{feature.icon}</div>
-                <div>
-                  <h4 className="text-[#3E2723] font-serif text-lg mb-1">{feature.title}</h4>
-                  <p className="text-stone-500 text-xs leading-relaxed">{feature.description}</p>
-                </div>
-              </motion.div>
-            ))}
           </div>
         </div>
       </section>
@@ -1028,82 +1018,59 @@ function HomeContent() {
         </div>
       </section>
 
-      {/* Contact Section - Complete Redesign */}
-      <section id="contact" className="py-24 md:py-32 px-6 md:px-12 bg-white relative overflow-hidden">
-        <div className="max-w-7xl mx-auto relative">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-            {/* Left: Image with overlay */}
-            <motion.div initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
-              className="relative h-[500px] md:h-[600px] rounded-3xl overflow-hidden group"
-            >
-              <Image src="/salon-contact.png" alt="Royal Glow Salon Reception" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-              {/* Floating badge */}
-              <div className="absolute bottom-8 left-8 right-8 z-10">
-                <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#C69C6D] to-[#A0735B] flex items-center justify-center shrink-0 shadow-lg">
-                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                    </div>
-                    <div>
-                      <p className="text-white font-serif text-lg">Beach Road, Matara</p>
-                      <p className="text-white/50 text-sm">Sri Lanka</p>
-                    </div>
-                  </div>
+      {/* Contact Section - Immersive Redesign */}
+      <section id="contact" className="relative py-32 md:py-40 flex items-center justify-center overflow-hidden min-h-[800px]">
+        {/* Background Image & Overlay */}
+        <div className="absolute inset-0 z-0">
+          <Image src="/salon-contact.png" alt="Royal Glow Salon" fill className="object-cover object-center" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#1A1210]/95 via-[#1A1210]/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/30" />
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10 w-full flex flex-col lg:flex-row justify-between items-center gap-16">
+
+          {/* Left: Heading & Intro */}
+          <motion.div initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="max-w-xl">
+            <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md mb-8">
+              <span className="w-2 h-2 rounded-full bg-[#C69C6D] animate-pulse" />
+              <span className="text-white tracking-[0.25em] uppercase text-[10px] font-bold">Connect With Us</span>
+            </div>
+            <h2 className="text-5xl md:text-7xl font-serif text-white leading-[1.1] mb-6">
+              Plan Your <br /><span className="italic gradient-text">Transformation</span>
+            </h2>
+            <p className="text-stone-300 text-base md:text-lg font-light leading-relaxed mb-12 max-w-md">
+              Whether you need a consultation or are ready to book your next visit, our concierge team is at your service to curate your luxury salon experience.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-5">
+              <Link href="/?book=true" className="group inline-flex justify-center items-center gap-4 bg-[#C69C6D] text-white px-9 py-5 rounded-full tracking-[0.2em] uppercase text-xs font-bold hover:bg-white hover:text-[#1A1210] transition-colors duration-500 shadow-xl">
+                Book Appointment
+                <svg className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+              </Link>
+            </div>
+          </motion.div>
+
+          {/* Right: Glassmorphism Contact Cards */}
+          <motion.div initial={{ opacity: 0, x: 40 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}
+            className="w-full max-w-md space-y-5"
+          >
+            {[
+              { title: "Reservations", value: "+94 41 222 3456", sub: "Available Daily 9 AM - 8 PM", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /> },
+              { title: "General Inquiries", value: "concierge@royalglow.com", sub: "Replies within 24 business hours", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /> },
+              { title: "Flagship Location", value: "Beach Road, Matara", sub: "Sri Lanka", icon: <><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></> }
+            ].map((item, idx) => (
+              <div key={idx} className="group relative overflow-hidden rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 p-6 md:p-8 flex items-start gap-6 hover:bg-white/10 hover:border-white/20 transition-all duration-500 cursor-default shadow-2xl">
+                <div className="absolute -right-10 -top-10 w-32 h-32 bg-[#C69C6D]/20 rounded-full blur-[40px] group-hover:bg-[#C69C6D]/40 transition-colors duration-500" />
+                <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-[#C69C6D] group-hover:scale-110 group-hover:bg-white/10 transition-all duration-500 shadow-inner">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">{item.icon}</svg>
+                </div>
+                <div className="relative z-10 pt-1">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-bold mb-2">{item.title}</p>
+                  <p className="text-white font-serif text-xl tracking-wide mb-1 group-hover:text-[#C69C6D] transition-colors">{item.value}</p>
+                  <p className="text-stone-400 text-xs font-light leading-relaxed">{item.sub}</p>
                 </div>
               </div>
-            </motion.div>
-
-            {/* Right: Contact Info */}
-            <motion.div initial={{ opacity: 0, x: 40 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
-              className="space-y-8"
-            >
-              <div>
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#C69C6D]/10 mb-6">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#C69C6D]" />
-                  <span className="text-[#C69C6D] tracking-[0.2em] uppercase text-[10px] font-bold">Get in Touch</span>
-                </div>
-                <h2 className="text-4xl md:text-5xl font-serif leading-tight mb-4">
-                  We&apos;d Love to<br /><span className="gradient-text">Hear From You</span>
-                </h2>
-                <p className="text-stone-400 text-sm leading-relaxed max-w-md">
-                  Visit our salon or reach out — we&apos;re always ready to help you look and feel your best.
-                </p>
-              </div>
-
-              {/* Contact Cards */}
-              <div className="space-y-4">
-                {[
-                  { icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>, label: "Phone", value: "+94 41 222 3456", sub: "+94 77 123 4567" },
-                  { icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>, label: "Email", value: "concierge@royalglow.com", sub: null },
-                  { icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, label: "Working Hours", value: "Mon – Sat: 9 AM – 8 PM", sub: "Sunday: 10 AM – 4 PM" },
-                ].map((item, idx) => (
-                  <motion.div key={idx} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }}
-                    className="flex items-center gap-5 p-5 rounded-2xl bg-[#FDFBF7] border border-stone-100 hover:border-[#C69C6D]/20 hover:shadow-lg transition-all duration-500 group cursor-default"
-                  >
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#C69C6D]/15 to-[#C69C6D]/5 flex items-center justify-center text-[#C69C6D] shrink-0 group-hover:from-[#C69C6D] group-hover:to-[#A0735B] group-hover:text-white transition-all duration-500">
-                      {item.icon}
-                    </div>
-                    <div>
-                      <p className="text-[9px] uppercase tracking-[0.2em] text-stone-400 font-bold mb-1">{item.label}</p>
-                      <p className="text-[#3E2723] font-serif text-sm">{item.value}</p>
-                      {item.sub && <p className="text-stone-400 text-xs mt-0.5">{item.sub}</p>}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* CTA */}
-              <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.4 }}>
-                <Link href="/?book=true"
-                  className="inline-flex items-center gap-3 bg-gradient-to-r from-[#C69C6D] to-[#B38759] text-white px-8 py-4 rounded-full tracking-[0.15em] uppercase text-xs font-bold hover:shadow-[0_0_40px_rgba(198,156,109,0.35)] transition-all duration-500 hover:scale-105 active:scale-95 group"
-                >
-                  Book Your Visit
-                  <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-                </Link>
-              </motion.div>
-            </motion.div>
-          </div>
+            ))}
+          </motion.div>
         </div>
       </section>
 
