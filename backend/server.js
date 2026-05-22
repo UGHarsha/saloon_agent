@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
@@ -27,7 +28,7 @@ const rawSupabaseAnonKey = (
   ''
 ).trim();
 const hasSupabaseConfig = /^https?:\/\//i.test(rawSupabaseUrl) && rawSupabaseAnonKey && !/^your_supabase_/i.test(rawSupabaseUrl) && !/^your_supabase_/i.test(rawSupabaseAnonKey);
-console.log('Supabase config check:', { hasSupabaseConfig, rawSupabaseUrl: rawSupabaseUrl ? `${rawSupabaseUrl.slice(0,60)}...` : '(empty)', anonKeySet: !!rawSupabaseAnonKey });
+console.log('Supabase config check:', { hasSupabaseConfig, rawSupabaseUrl: rawSupabaseUrl ? `${rawSupabaseUrl.slice(0, 60)}...` : '(empty)', anonKeySet: !!rawSupabaseAnonKey });
 const inMemoryBookings = [];
 
 const app = express();
@@ -46,12 +47,12 @@ function buildSupabaseClient(accessToken) {
 
   const clientOptions = accessToken
     ? {
-        global: {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
         },
-      }
+      },
+    }
     : undefined;
 
   return createClient(rawSupabaseUrl, rawSupabaseAnonKey, clientOptions);
@@ -253,7 +254,7 @@ function toNaturalHairHex(inputColor) {
   return rgbToHex(hslToRgb(adjusted));
 }
 
-function extractAppointmentDetails(message, history) {
+function extractAppointmentDetails(message, history, servicesList) {
   const userHistory = (history || []).filter((msg) => msg?.role === 'user');
   const fullConversation = [...userHistory.map((msg) => msg.text), message].join(" ");
   const lowerConversation = fullConversation.toLowerCase();
@@ -262,33 +263,13 @@ function extractAppointmentDetails(message, history) {
 
   const details = {};
 
-  if (lowerConversation.includes("adult buzz cut") || lowerConversation.includes("buzz cut")) {
-    details.service = "Adult Buzz Cut 60 min (Rs. 5000+)";
-  } else if (lowerConversation.includes("clean up") || lowerConversation.includes("beard") || lowerConversation.includes("neck trim")) {
-    details.service = "Clean Up - Beard & Neck Trim 15 min (Rs. 2500+)";
-  } else if (lowerConversation.includes("gent hair cut") || lowerConversation.includes("gent's haircut")) {
-    details.service = "Gent hair cut 30 min (Rs. 4000+)";
-  } else if (lowerConversation.includes("women's haircut") || lowerConversation.includes("women's hair cut")) {
-    details.service = "Women's Haircut 60 min (Rs. 6000+)";
-  } else if (lowerConversation.includes("keratin")) {
-    details.service = "Keratin Treatment 120 min (Rs. 25000+)";
-  } else if (lowerConversation.includes("bridal") || lowerConversation.includes("wedding")) {
-    details.service = "Bridal Package 180 min (Rs. 50000+)";
-  } else if (lowerConversation.includes("color") || lowerConversation.includes("colour") || lowerConversation.includes("highlight")) {
-    // Determine if men's or women's color
-    if (lowerConversation.includes("men")) {
-      details.service = "Color & Highlights 60 min (Rs. 10000+)";
-    } else {
-      details.service = "Color & Highlights 120 min (Rs. 15000+)";
+  if (servicesList && servicesList.length > 0) {
+    for (const service of servicesList) {
+      if (lowerConversation.includes(service.name.toLowerCase())) {
+        details.service = `${service.name} ${service.duration} min (Rs. ${service.price})`;
+        break;
+      }
     }
-  } else if (lowerConversation.includes("consultation")) {
-    if (lowerConversation.includes("women")) {
-      details.service = "Consultation 30 min (Rs. 2000)";
-    } else {
-      details.service = "Consultation 15 min (Rs. 2000)";
-    }
-  } else if (lowerConversation.includes("haircut") || lowerConversation.includes("hair cut") || lowerConversation.includes("trim")) {
-    details.service = "Gent hair cut 30 min (Rs. 4000+)"; // Default to gent if not specified
   }
 
   // Very basic extraction of "tomorrow", dates, and times
@@ -509,8 +490,11 @@ async function pollPaintingResult(inferenceId, picsartApiKey) {
   throw new Error('Picsart result polling timed out. Please try again.');
 }
 
-async function runPicsartRecolor(file, naturalTargetColorHex, picsartApiKey) {
-  const prompt = `Change only the person's hair color to #${naturalTargetColorHex}. Keep skin tone, face shape, background, clothing, and hairstyle unchanged. Make it photorealistic.`;
+async function runPicsartRecolor(file, colorQuery, naturalTargetColorHex, picsartApiKey) {
+  // If colorQuery looks like a hex code, use just the hex. Otherwise mention the color name and the hex.
+  const isHexOnly = /^#?[0-9A-Fa-f]{3,6}$/.test(colorQuery);
+  const colorPhrase = isHexOnly ? `#${naturalTargetColorHex}` : `${colorQuery} tone (color matched as #${naturalTargetColorHex})`;
+  const prompt = `Perfectly recolor ONLY the hair to ${colorPhrase}. The person's face, facial features, skin tone, clothing, hairstyle structure, and the entire background MUST remain 100% identical to the original image. Do not change anything except the hair color.`;
 
   const form = new FormData();
   form.append('image', file.buffer, {
@@ -518,6 +502,7 @@ async function runPicsartRecolor(file, naturalTargetColorHex, picsartApiKey) {
     contentType: file.mimetype,
   });
   form.append('prompt', prompt);
+  form.append('negative_prompt', 'new face, different identity, changed facial features, altered background, different clothing, different hairstyle, deformed, blur');
   form.append('count', '1');
   form.append('format', 'PNG');
 
@@ -560,7 +545,13 @@ async function runPicsartRecolor(file, naturalTargetColorHex, picsartApiKey) {
   throw new Error(`Picsart ${picsartResponse.status}: ${reason}`);
 }
 
-const PROMPT_TEMPLATE = `You are Bella, a sophisticated AI receptionist for a luxury salon in Sri Lanka. 
+function buildAIPrompt(servicesList) {
+  const menServices = (servicesList || []).filter(s => s.category.toLowerCase() === 'men')
+    .map((s, i) => `${i + 1}. ${s.name} ${s.duration} min - Rs. ${s.price}`).join('\n');
+  const womenServices = (servicesList || []).filter(s => s.category.toLowerCase() === 'women')
+    .map((s, i) => `${i + 1}. ${s.name} ${s.duration} min - Rs. ${s.price}`).join('\n');
+
+  return `You are Bella, a sophisticated AI receptionist for a luxury salon in Sri Lanka. 
 You ONLY handle salon-related queries. NEVER break character.
 If asked about topics outside salon services (e.g., coding, politics, recipes, general facts), politely guide the conversation back to the salon.
 
@@ -580,44 +571,41 @@ IMPORTANT BOOKING RULES:
 Here is our exact price list in LKR. Use ONLY these services and amounts when booking:
 
 MEN'S SERVICES:
-1. Adult Buzz Cut 60 min - Rs. 5000+
-2. Clean Up - Beard & Neck Trim 15 min - Rs. 2500+
-3. Gent hair cut 30 min - Rs. 4000+
-4. Color & Highlights 60 min - Rs. 10000+
-5. Consultation 15 min - Rs. 2000
+${menServices}
 
 WOMEN'S SERVICES:
-1. Women's Haircut 60 min - Rs. 6000+
-2. Color & Highlights 120 min - Rs. 15000+
-3. Keratin Treatment 120 min - Rs. 25000+
-4. Bridal Package 180 min - Rs. 50000+
-5. Consultation 30 min - Rs. 2000
+${womenServices}
 
 When asked about prices, always ask first if they are looking for Men's or Women's services, then show the corresponding list.
-When outputting JSON, ensure the service name matches the list above perfectly.
-
-
-Conversation History:
-{HISTORY}
-
-User: {USER_INPUT}
-Bella:`;
+When outputting JSON, ensure the service name matches the list above perfectly.`;
+}
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, history, userId, accessToken } = req.body;
+    const { message, history, userId, userEmail, accessToken } = req.body;
     const safeMessage = typeof message === 'string' ? message.trim() : '';
     const safeHistory = Array.isArray(history)
       ? history.filter((msg) => msg && typeof msg.text === 'string' && typeof msg.role === 'string')
       : [];
     const safeUserId = typeof userId === 'string' ? userId.trim() : '';
+    const safeUserEmail = typeof userEmail === 'string' ? userEmail.trim() : '';
     const safeAccessToken = typeof accessToken === 'string' ? accessToken.trim() : '';
 
     if (!safeMessage) {
       return res.status(400).json({ error: "Message is required." });
     }
 
-    const appointmentDetails = extractAppointmentDetails(safeMessage, safeHistory);
+    // Reuse the exact services fetching logic
+    let servicesList = inMemoryServices; // Always defaults to in-memory locally mapped initially
+    const client = getRequestSupabase(safeAccessToken);
+    if (client) {
+      const { data, error } = await client.from('services').select('*').order('category', { ascending: false }).order('name', { ascending: true });
+      if (!error || !isTableMissingError(error)) {
+        servicesList = data || inMemoryServices;
+      }
+    }
+
+    const appointmentDetails = extractAppointmentDetails(safeMessage, safeHistory, servicesList);
 
     const bookingKeywords = ["confirm", "book", "schedule", "yes", "okay", "sure", "perfect", "sounds good"];
     const userConversationText = [
@@ -694,6 +682,9 @@ app.post('/api/chat', async (req, res) => {
           if (safeUserId) {
             bookingData.user_id = safeUserId;
           }
+          if (safeUserEmail) {
+            bookingData.user_email = safeUserEmail;
+          }
 
           console.log("Saving appointment to Supabase:", bookingData);
 
@@ -755,7 +746,7 @@ app.post('/api/chat', async (req, res) => {
           model: "gemini-2.5-flash",
           contents: contents,
           config: {
-            systemInstruction: PROMPT_TEMPLATE,
+            systemInstruction: buildAIPrompt(servicesList),
           },
         });
 
@@ -797,11 +788,11 @@ app.post('/api/recolor-hair', upload.single('image'), async (req, res) => {
     const targetColorHex = req.body.color || "8D3127";
     const naturalTargetColorHex = toNaturalHairHex(targetColorHex);
 
-    console.log(`Processing hair recolor request to Hex: ${targetColorHex} (naturalized: ${naturalTargetColorHex}) with Picsart...`);
+    console.log(`Processing hair recolor request to Hex/Color: ${targetColorHex} (naturalized: ${naturalTargetColorHex}) with Picsart...`);
 
     let recoloredImageUrl = null;
     try {
-      recoloredImageUrl = await runPicsartRecolor(req.file, naturalTargetColorHex, picsartApiKey);
+      recoloredImageUrl = await runPicsartRecolor(req.file, targetColorHex, naturalTargetColorHex, picsartApiKey);
     } catch (picsartError) {
       const reason = picsartError instanceof Error ? picsartError.message : 'Unknown Picsart failure';
       console.error('Picsart API Error:', reason);
@@ -845,7 +836,7 @@ app.get('/api/booked-slots', async (req, res) => {
 
 app.post('/api/book-manual', async (req, res) => {
   try {
-    const { name, service, date, userId, accessToken } = req.body;
+    const { name, service, date, userId, userEmail, accessToken } = req.body;
 
     if (!name || !service || !date) {
       return res.status(400).json({ error: "Missing required fields: name, service, or date." });
@@ -888,6 +879,9 @@ app.post('/api/book-manual', async (req, res) => {
     if (userId) {
       bookingData.user_id = userId;
     }
+    if (userEmail) {
+      bookingData.user_email = userEmail;
+    }
 
     const { data, error } = await saveBooking(bookingData, accessToken);
 
@@ -899,6 +893,260 @@ app.post('/api/book-manual', async (req, res) => {
   } catch (error) {
     console.error("Manual Booking Error:", error);
     res.status(500).json({ error: "Failed to book appointment." });
+  }
+});
+
+app.post('/api/delete-bookings', async (req, res) => {
+  try {
+    const { ids, accessToken } = req.body;
+    if (!ids || !Array.isArray(ids)) {
+      return res.status(400).json({ error: "Booking IDs are required." });
+    }
+
+    const client = getRequestSupabase(accessToken);
+    if (!client && hasSupabaseConfig) throw new Error("Supabase client not configured");
+
+    const normalizedIds = ids.map(id => !isNaN(Number(id)) && typeof id !== 'boolean' ? Number(id) : id);
+
+    const { error } = await client
+      .from('bookings')
+      .delete()
+      .in('id', normalizedIds);
+
+    if (error) {
+      console.error("Delete Error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Delete Endpoint Error:", error);
+    res.status(500).json({ error: "Failed to delete bookings." });
+  }
+});
+
+// --- SERVICES ENDPOINTS ---
+
+app.get('/api/services', async (req, res) => {
+  try {
+    const { accessToken } = req.query;
+    const client = getRequestSupabase(accessToken);
+
+    if (!client) {
+      throw new Error("Supabase client not initialized.");
+    }
+
+    const { data, error } = await client
+      .from('services')
+      .select('*')
+      .order('category', { ascending: false })
+      .order('name', { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+    const mappedData = (data || []).map(s => {
+      if (s.name && s.name.includes('|||')) {
+        const [realName, desc] = s.name.split('|||');
+        return { ...s, name: realName, description: desc };
+      }
+      return s;
+    });
+    return res.json(mappedData);
+  } catch (error) {
+    console.error("Fetch Services Error:", error);
+    res.status(500).json({ error: "Failed to fetch services." });
+  }
+});
+
+app.post('/api/services', async (req, res) => {
+  try {
+    const { name, category, price, duration, description, accessToken } = req.body;
+    const client = getRequestSupabase(accessToken);
+
+    if (!client) {
+      throw new Error("Supabase client not initialized.");
+    }
+
+    let finalName = name;
+    if (description) {
+      finalName = `${name}|||${description}`;
+    }
+
+    const { data, error } = await client
+      .from('services')
+      .insert([{ name: finalName, category, price, duration }])
+      .select();
+
+    if (error) {
+      throw error;
+    }
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error("Add Service Error:", error);
+    res.status(500).json({ error: error.message || "Failed to add service." });
+  }
+});
+
+app.put('/api/services/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { name, category, price, duration, description, accessToken } = req.body;
+    const client = getRequestSupabase(accessToken);
+
+    if (!client) {
+      throw new Error("Supabase client not initialized.");
+    }
+
+    let finalName = name;
+    if (description) {
+      finalName = `${name}|||${description}`;
+    }
+
+    const { data, error } = await client
+      .from('services')
+      .update({ name: finalName, category, price, duration })
+      .eq('id', id)
+      .select();
+
+    if (error) {
+      throw error;
+    }
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error("Update Service Error:", error);
+    res.status(500).json({ error: error.message || "Failed to update service." });
+  }
+});
+
+app.delete('/api/services/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { accessToken } = req.body;
+    const client = getRequestSupabase(accessToken);
+
+    if (!client) {
+      throw new Error("Supabase client not initialized.");
+    }
+
+    const { error } = await client
+      .from('services')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw error;
+    }
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("Delete Service Error:", error);
+    res.status(500).json({ error: error.message || "Failed to delete service." });
+  }
+});
+
+// --- UPLOAD ENDPOINT ---
+app.post('/api/upload', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { accessToken } = req.body;
+    // Basic verification without strictly failing to allow local testing
+
+    // We will save to frontend/public/uploads
+    const uploadDir = path.join(__dirname, '../frontend/public/customers');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const filename = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`;
+    const filePath = path.join(uploadDir, filename);
+
+    fs.writeFileSync(filePath, req.file.buffer);
+
+    return res.json({
+      success: true,
+      url: `/customers/${filename}`
+    });
+  } catch (error) {
+    console.error("Upload error:", error);
+    res.status(500).json({ error: "Failed to upload image" });
+  }
+});
+
+// --- LOOKBOOK ENDPOINTS ---
+
+app.get('/api/lookbook', async (req, res) => {
+  try {
+    const { accessToken } = req.query;
+    const client = getRequestSupabase(accessToken);
+
+    if (!client) {
+      throw new Error("Supabase client not initialized.");
+    }
+
+    const { data, error } = await client
+      .from('lookbook')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+    return res.json(data || []);
+  } catch (error) {
+    console.error("Fetch Lookbook Error:", error);
+    res.status(500).json({ error: "Failed to fetch lookbook images." });
+  }
+});
+
+app.post('/api/lookbook', async (req, res) => {
+  try {
+    const { src, alt, accessToken } = req.body;
+    const client = getRequestSupabase(accessToken);
+
+    if (!client) {
+      throw new Error("Supabase client not initialized.");
+    }
+
+    const { data, error } = await client
+      .from('lookbook')
+      .insert([{ src, alt }])
+      .select();
+
+    if (error) {
+      throw error;
+    }
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error("Add Lookbook Image Error:", error);
+    res.status(500).json({ error: error.message || "Failed to add image." });
+  }
+});
+
+app.delete('/api/lookbook/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { accessToken } = req.body;
+    const client = getRequestSupabase(accessToken);
+
+    if (!client) {
+      throw new Error("Supabase client not initialized.");
+    }
+
+    const { error } = await client
+      .from('lookbook')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw error;
+    }
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("Delete Lookbook Image Error:", error);
+    res.status(500).json({ error: error.message || "Failed to delete image." });
   }
 });
 

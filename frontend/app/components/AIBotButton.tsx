@@ -1,28 +1,29 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { MessageCircle } from "lucide-react";
 
 export default function AIBotButton() {
+    const pathname = usePathname();
+
+    if (pathname?.startsWith("/admin")) {
+        return null;
+    }
+
     return (
         <Link href="/?book=ai"
-            className="fixed bottom-8 right-8 bg-[#3E2723] text-white p-0 rounded-full shadow-2xl hover:scale-110 transition-all duration-300 z-50 flex items-center justify-center group w-16 h-16 border-2 border-white/20"
+            className="fixed bottom-6 right-6 z-50 group"
             aria-label="Consult AI Assistant"
         >
-            {/* Pulse effect */}
-            <span className="absolute inset-0 rounded-full bg-[#C69C6D] animate-ping opacity-20 group-hover:opacity-40"></span>
-
-            {/* Bot Icon */}
-            <div className="relative z-10 w-full h-full flex items-center justify-center">
-                <span className="text-2xl group-hover:rotate-12 transition-transform duration-300">✨</span>
-
-                {/* Status indicator */}
-                <span className="absolute bottom-3 right-3 w-3 h-3 bg-green-500 rounded-full border-2 border-[#3E2723]"></span>
-            </div>
-
-            {/* Tooltip on hover */}
-            <div className="absolute right-full mr-4 bg-white text-[#3E2723] px-4 py-2 text-[10px] font-black rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0 uppercase tracking-[0.2em] whitespace-nowrap border border-stone-100">
-                <p className="text-[#C69C6D]">Online</p>
-                Chat with Bella
+            <div className="relative">
+                {/* Glow ring */}
+                <div className="absolute inset-0 bg-[#C69C6D] rounded-full blur-lg opacity-30 group-hover:opacity-50 transition-opacity duration-500 scale-110" />
+                {/* Button */}
+                <div className="relative bg-gradient-to-br from-[#C69C6D] to-[#A0735B] text-white p-4 rounded-full shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 flex items-center justify-center">
+                    <MessageCircle className="w-6 h-6" />
+                </div>
             </div>
         </Link>
     );
 }
-
