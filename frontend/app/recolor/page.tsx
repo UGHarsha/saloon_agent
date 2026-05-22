@@ -3,7 +3,7 @@ import { useState } from "react";
 
 export default function Recolor() {
   const [file, setFile] = useState<File | null>(null);
-  const [color, setColor] = useState("4A3022");
+  const [color, setColor] = useState("dark brown");
   const [colorName, setColorName] = useState("Dark Brown");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -62,15 +62,15 @@ export default function Recolor() {
   };
 
   const PRESET_COLORS = [
-    { name: "Blonde", val: "CAA36B", hex: "CAA36B" },
-    { name: "Light Brown", val: "8A5F46", hex: "8A5F46" },
-    { name: "Dark Brown", val: "4A3022", hex: "4A3022" },
-    { name: "Auburn", val: "8D3127", hex: "8D3127" },
-    { name: "Ginger", val: "B55A2A", hex: "B55A2A" },
-    { name: "Black", val: "2A211E", hex: "2A211E" },
-    { name: "Silver", val: "AEB1B3", hex: "AEB1B3" },
-    { name: "Burgundy", val: "4D1A1C", hex: "4D1A1C" },
-    { name: "Chestnut", val: "7B4C37", hex: "7B4C37" },
+    { name: "Blonde", val: "blonde", hex: "CAA36B" },
+    { name: "Light Brown", val: "light brown", hex: "8A5F46" },
+    { name: "Dark Brown", val: "dark brown", hex: "4A3022" },
+    { name: "Auburn", val: "auburn", hex: "8D3127" },
+    { name: "Ginger", val: "ginger", hex: "B55A2A" },
+    { name: "Black", val: "black", hex: "2A211E" },
+    { name: "Silver", val: "silver", hex: "AEB1B3" },
+    { name: "Burgundy", val: "burgundy", hex: "4D1A1C" },
+    { name: "Chestnut", val: "chestnut", hex: "7B4C37" },
   ];
 
   return (
