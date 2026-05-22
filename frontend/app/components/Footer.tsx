@@ -12,14 +12,14 @@ export default function Footer() {
     }
 
     return (
-        <footer className="bg-[#1A1A1A] text-stone-500 py-24 px-6 border-t border-stone-800">
+        <footer className="bg-[#1A1A1A] text-stone-500 py-8 px-6 border-t border-stone-800">
             <div className="max-w-7xl mx-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 mb-20">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-6">
 
                     {/* Brand */}
-                    <div className="space-y-8">
+                    <div className="space-y-3">
                         <Link href="/" className="inline-block">
-                            <Image src="/wite.png" alt="Royal Glow" width={80} height={80} style={{ width: "auto" }} className="mb-4 opacity-80" />
+                            <Image src="/wite.png" alt="Royal Glow" width={60} height={60} style={{ width: "auto" }} className="mb-2 opacity-80" />
                             <h2 className="text-white font-serif text-2xl tracking-[0.2em] uppercase">Royal Glow</h2>
                         </Link>
                         <p className="text-sm font-light leading-relaxed max-w-xs">
@@ -39,7 +39,7 @@ export default function Footer() {
                     </div>
 
                     {/* Navigation */}
-                    <div className="space-y-8">
+                    <div className="space-y-3">
                         <h4 className="text-white text-[10px] uppercase tracking-[0.3em] font-bold">The House</h4>
                         <ul className="space-y-4">
                             {["Home", "About", "Services", "Reviews", "Virtual Try-On"].map((item) => (
@@ -56,7 +56,7 @@ export default function Footer() {
                     </div>
 
                     {/* Contact */}
-                    <div className="space-y-8">
+                    <div className="space-y-3">
                         <h4 className="text-white text-[10px] uppercase tracking-[0.3em] font-bold">Inquiries</h4>
                         <ul className="space-y-6 text-sm font-light">
                             <li className="flex gap-4">
@@ -75,7 +75,7 @@ export default function Footer() {
                     </div>
 
                     {/* Appointment */}
-                    <div className="space-y-8">
+                    <div className="space-y-3">
                         <h4 className="text-white text-[10px] uppercase tracking-[0.3em] font-bold">Availability</h4>
                         <div className="space-y-4 text-sm font-light">
                             <div className="flex justify-between border-b border-stone-800/50 pb-2">
@@ -97,7 +97,7 @@ export default function Footer() {
 
                 </div>
 
-                <div className="pt-12 border-t border-stone-900 flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] uppercase tracking-[0.2em] font-bold text-stone-600">
+                <div className="pt-6 border-t border-stone-900 flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] uppercase tracking-[0.2em] font-bold text-stone-600">
                     <p>© {new Date().getFullYear()} Royal Glow Salon</p>
                     <div className="flex gap-8">
                         <Link href="/privacy" className="hover:text-stone-400">Privacy Policy</Link>

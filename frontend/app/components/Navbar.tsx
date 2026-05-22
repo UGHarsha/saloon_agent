@@ -93,10 +93,10 @@ export default function Navbar() {
         : "bg-transparent py-5"
         } ${showNavbar ? "translate-y-0" : "-translate-y-full"}`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-[95rem] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-4 group z-50">
+          <Link href="/" className="flex items-center space-x-2 lg:space-x-4 group z-50 shrink-0">
             {isSolid ? (
               <Image
                 src="/black.png"
@@ -116,13 +116,13 @@ export default function Navbar() {
                 className="object-contain"
               />
             )}
-            <span className={`font-serif tracking-widest text-base transition-colors hidden sm:block ${isSolid ? "text-stone-900" : "text-white"}`}>
+            <span className={`font-serif tracking-widest text-base transition-colors hidden sm:block whitespace-nowrap ${isSolid ? "text-stone-900" : "text-white"}`}>
               ROYAL GLOW
             </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-10">
+          <div className="hidden md:flex items-center space-x-3 lg:space-x-5 xl:space-x-6">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
@@ -136,14 +136,14 @@ export default function Navbar() {
               </Link>
             ))}
 
-            <div className="h-4 w-px bg-stone-300/50 mx-6"></div>
+            <div className="h-4 w-px bg-stone-300/50 mx-3 lg:mx-4"></div>
 
             {user ? (
               <>
                 {isAdmin && (
                   <Link
                     href="/admin"
-                    className={`text-sm font-medium uppercase tracking-widest transition-colors flex items-center gap-2 ${isSolid ? "text-[#C69C6D] hover:text-[#B8885F]" : "text-[#C69C6D] hover:text-[#B8885F]"
+                    className={`text-sm font-medium uppercase tracking-widest transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 ${isSolid ? "text-[#C69C6D] hover:text-[#B8885F]" : "text-[#C69C6D] hover:text-[#B8885F]"
                       }`}
                   >
                     <Shield className="w-4 h-4" />
@@ -152,14 +152,14 @@ export default function Navbar() {
                 )}
                 <button
                   onClick={handleLogout}
-                  className={`text-sm font-medium uppercase tracking-widest transition-colors ${isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
+                  className={`text-sm font-medium uppercase tracking-widest transition-colors whitespace-nowrap shrink-0 ${isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
                     }`}
                 >
                   Logout
                 </button>
                 <Link
                   href="/?book=true"
-                  className={`text-xs font-semibold uppercase tracking-widest px-6 py-3 transition-all whitespace-nowrap ${isSolid
+                  className={`text-xs font-semibold uppercase tracking-widest px-4 lg:px-6 py-3 transition-all whitespace-nowrap shrink-0 ${isSolid
                     ? "bg-stone-900 text-white hover:bg-stone-800"
                     : "bg-white text-stone-900 hover:bg-white/90"
                     }`}
