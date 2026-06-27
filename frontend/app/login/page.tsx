@@ -3,18 +3,19 @@
 import { useState } from "react";
 import { supabase } from "../../utils/supabase";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { motion } from "framer-motion";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
     setLoading(true);
     setMessage("");
 
@@ -26,20 +27,15 @@ export default function Login() {
     if (error) {
       setMessage(error.message);
     } else {
-      // Check if there's a redirect target, or check if admin
-      const searchParams = new URLSearchParams(window.location.search);
-      const nextParam = searchParams.get("next") || "/";
-      
       const user = data.user;
-      // Uses NEXT_PUBLIC_ADMIN_EMAIL environment variable to avoid hardcoding your real email
-      const isAdmin = user?.user_metadata?.role === 'admin' || user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-      
-      if (isAdmin && nextParam === "/") {
-        window.location.href = "/admin";
-      } else {
-        window.location.href = nextParam;
-      }
+
+      const isAdmin =
+        user?.user_metadata?.role === "admin" ||
+        user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+
+      window.location.href = isAdmin ? "/admin" : "/";
     }
+
     setLoading(false);
   };
 
@@ -57,81 +53,166 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center px-4 relative">
-      <div className="absolute inset-0 bg-slate-950/40 z-0 pointer-events-none"></div>
+    <div className="min-h-screen bg-[#090909] flex items-start justify-center px-4 pt-28 pb-10">
 
-      <div className="relative z-10 w-full max-w-md bg-slate-900/80 p-8 rounded-xl border border-white/10 shadow-2xl backdrop-blur-xl">
-        <h2 className="text-2xl text-blue-50 font-serif mb-6 text-center tracking-widest uppercase">
-          Welcome Back
-        </h2>
+      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-10">
+
+        <div className="text-center mb-10">
+
+          <h1 className="text-3xl font-serif text-white">
+            Welcome{" "}
+            <span className="italic font-bold bg-gradient-to-r from-[#E8B88A] to-[#C77DFF] bg-clip-text text-transparent">
+              Back
+            </span>
+          </h1>
+
+          <p className="text-stone-400 text-sm mt-3">
+            Sign in to continue your Royal Glow experience
+          </p>
+
+        </div>
+
 
         {message && (
-          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 text-red-500 rounded-md text-sm text-center">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-3 rounded-xl bg-red-500/10 text-red-400 text-xs text-center"
+          >
             {message}
-          </div>
+          </motion.div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-blue-300 text-xs uppercase tracking-widest mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-950 border border-white/10 rounded-md px-4 py-3 text-blue-50 focus:outline-none focus:border-white/30 transition-colors"
-              placeholder="Enter your email"
-            />
-          </div>
+
+        <form onSubmit={handleLogin} className="space-y-6">
 
           <div>
-            <label className="block text-blue-300 text-xs uppercase tracking-widest mb-2">
+
+            <label className="block text-[11px] uppercase tracking-[0.25em] text-stone-400 mb-3 font-bold">
+              Email
+            </label>
+
+
+            <div className="relative">
+
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500" />
+
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                className="w-full h-14 rounded-2xl bg-black/30 border border-white/10 text-white pl-12 outline-none focus:border-[#E8B88A]"
+              />
+
+            </div>
+
+          </div>
+
+
+
+          <div>
+
+            <label className="block text-[11px] uppercase tracking-[0.25em] text-stone-400 mb-3 font-bold">
               Password
             </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-950 border border-white/10 rounded-md px-4 py-3 text-blue-50 focus:outline-none focus:border-white/30 transition-colors"
-              placeholder="Enter your password"
-            />
+
+
+            <div className="relative">
+
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500" />
+
+
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="w-full h-14 rounded-2xl bg-black/30 border border-white/10 text-white pl-12 pr-12 outline-none focus:border-[#E8B88A]"
+              />
+
+
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-500"
+              >
+
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+
+              </button>
+
+
+            </div>
+
           </div>
+
+
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-white text-zinc-900 py-3 rounded-md text-sm uppercase tracking-widest font-semibold hover:bg-slate-200 transition-colors disabled:opacity-50 mt-4"
+            className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#E8B88A] to-[#D4A574] text-black font-bold tracking-widest text-sm"
           >
-            {loading ? "Logging in..." : "Log In"}
+
+            {loading ? "SIGNING..." : "SIGN IN"}
+
           </button>
+
+
         </form>
 
-        <div className="mt-6 flex items-center justify-center space-x-4">
-          <div className="h-px bg-white/10 flex-1"></div>
-          <span className="text-slate-400 text-xs uppercase tracking-widest">
-            Or
+
+
+        <div className="flex items-center gap-4 my-7">
+
+          <div className="h-px bg-white/10 flex-1" />
+
+          <span className="text-xs text-stone-500">
+            OR
           </span>
-          <div className="h-px bg-white/10 flex-1"></div>
+
+          <div className="h-px bg-white/10 flex-1" />
+
         </div>
+
+
 
         <button
           onClick={handleGoogleLogin}
-          className="mt-6 w-full flex items-center justify-center bg-slate-800 text-blue-50 py-3 rounded-md text-sm font-medium hover:bg-slate-700 transition-colors border border-white/5"
+          className="w-full h-14 rounded-2xl border border-white/10 text-stone-300 flex items-center justify-center gap-3"
         >
-          <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4 mr-3" />
+
+          <img
+            src="https://www.google.com/favicon.ico"
+            className="w-5 h-5"
+            alt="Google"
+          />
+
           Continue with Google
+
         </button>
 
-        <p className="mt-8 text-center text-blue-300 text-sm">
-          Don&apos;t have an account?{" "}
-          <Link href="/register" className="text-blue-50 hover:underline">
-            Register
+
+
+        <p className="text-center text-sm text-stone-500 mt-7">
+
+          Don't have an account?
+
+          <Link
+            href="/register"
+            className="text-[#E8B88A] ml-2"
+          >
+            Create Account
           </Link>
+
         </p>
+
+
       </div>
+
     </div>
   );
 }

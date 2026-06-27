@@ -14,12 +14,14 @@
   "dependencies": {
     "@google/genai": "^1.48.0",
     "@supabase/supabase-js": "^2.101.1",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",
     "express": "^5.2.1",
     "form-data": "^4.0.5",
     "multer": "^2.1.1",
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "nodemailer": "^9.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

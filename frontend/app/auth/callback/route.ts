@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server'
-// The client you created from the Server-Side Auth instructions
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  // if "next" is in param, use it as the redirect URL
   const next = searchParams.get('next') ?? '/'
 
   if (code) {
@@ -30,12 +28,24 @@ export async function GET(request: Request) {
       }
     )
     
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error && data?.user) {
+      // Redirect to a client page that will save the profile
+      // Pass user info as query params so the client component can call the backend
+      const user = data.user
+      const userId = user.id
+      const email = user.email || ''
+      // For Google OAuth, the name comes from user_metadata
+      const name = user.user_metadata?.full_name || user.user_metadata?.name || email.split('@')[0]
+
+      const redirectUrl = new URL(`${origin}/auth/sync`)
+      redirectUrl.searchParams.set('userId', userId)
+      redirectUrl.searchParams.set('email', email)
+      redirectUrl.searchParams.set('name', name)
+      redirectUrl.searchParams.set('next', next)
+      return NextResponse.redirect(redirectUrl.toString())
     }
   }
 
-  // return the user to an error page with instructions
   return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
 }

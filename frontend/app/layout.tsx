@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
-import AIBotButton from "./components/AIBotButton";
+import LayoutShell from "./components/LayoutShell";
 
-const inter = Inter({ subsets: ["latin"] });
+const cormorant = Cormorant_Garamond({
+  subsets: ["latin"],
+  variable: "--font-serif",
+  weight: ["300", "400", "500", "600", "700"],
+  style: ["normal", "italic"],
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
 
 export const metadata: Metadata = {
   title: "Royal Glow Salon",
@@ -18,13 +26,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="light" data-scroll-behavior="smooth">
-      <body className={`${inter.className} bg-stone-50 text-stone-900 antialiased`} suppressHydrationWarning>
-        <Navbar />
-        {children}
-        <Footer />
-        <AIBotButton />
+    <html lang="en" className="dark" data-scroll-behavior="smooth">
+      <body className={`${plusJakarta.variable} ${cormorant.variable} ${plusJakarta.className} bg-[#0A0A0A] text-stone-100 antialiased`} suppressHydrationWarning>
+        <LayoutShell>{children}</LayoutShell>
       </body>
-    </html >
+    </html>
   );
 }

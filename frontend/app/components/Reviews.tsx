@@ -51,14 +51,15 @@ export default function Reviews() {
     if (reviews.length === 0) return null;
 
     return (
-        <section className="py-24 bg-white overflow-hidden">
-            <div className="max-w-7xl mx-auto px-6">
-                <div className="text-center mb-16">
+        <section className="py-32 bg-[#0F0F0F] relative overflow-hidden border-t border-white/5">
+            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-[#E8B88A]/5 rounded-full blur-[120px] pointer-events-none" />
+            <div className="max-w-7xl mx-auto px-6 relative z-10">
+                <div className="text-center mb-20">
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        className="text-[#C69C6D] tracking-[0.2em] uppercase text-xs mb-4 font-semibold"
+                        className="text-[#E8B88A] tracking-[0.3em] uppercase text-[10px] mb-4 font-black"
                     >
                         Voices of Elegance
                     </motion.p>
@@ -67,9 +68,9 @@ export default function Reviews() {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.1 }}
-                        className="text-4xl md:text-5xl font-serif text-[#3E2723]"
+                        className="text-4xl md:text-6xl font-serif text-white tracking-tight"
                     >
-                        What Our Clients Say
+                        What Our Clients <span className="italic gradient-text">Say</span>
                     </motion.h2>
                 </div>
 
@@ -81,23 +82,23 @@ export default function Reviews() {
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
                             transition={{ delay: idx * 0.1 }}
-                            className="bg-[#FDFBF7] p-8 rounded-2xl border border-stone-100 hover:shadow-xl transition-all duration-500 group"
+                            className="bg-white/[0.02] backdrop-blur-md p-8 rounded-3xl border border-white/5 hover:border-[#E8B88A]/20 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all duration-500 group flex flex-col justify-between min-h-[300px]"
                         >
-                            <div className="mb-6">
-                                {renderStars(review.rating)}
+                            <div>
+                                <div className="mb-6">
+                                    {renderStars(review.rating)}
+                                </div>
+                                <p className="text-stone-300 italic leading-relaxed text-sm relative mb-8">
+                                    &ldquo;{review.comment}&rdquo;
+                                </p>
                             </div>
-                            <p className="text-stone-600 italic leading-relaxed mb-8 relative">
-                                <span className="text-4xl text-[#C69C6D] absolute -top-4 -left-2 opacity-20 serif">"</span>
-                                {review.comment}
-                                <span className="text-4xl text-[#C69C6D] absolute -bottom-8 -right-2 opacity-20 serif">"</span>
-                            </p>
-                            <div className="flex items-center gap-4 border-t border-stone-200 pt-6">
-                                <div className="w-10 h-10 bg-[#3E2723] rounded-full flex items-center justify-center text-white font-serif text-sm">
+                            <div className="flex items-center gap-4 border-t border-white/5 pt-6 mt-auto">
+                                <div className="w-10 h-10 bg-gradient-to-br from-[#E8B88A] to-[#C77DFF] rounded-full flex items-center justify-center text-black font-serif font-black text-sm shrink-0">
                                     {review.customer_name.charAt(0)}
                                 </div>
                                 <div>
-                                    <h4 className="font-serif text-[#3E2723] font-bold">{review.customer_name}</h4>
-                                    <p className="text-[10px] text-stone-400 uppercase tracking-widest">Verified Client</p>
+                                    <h4 className="font-serif text-white text-base font-bold">{review.customer_name}</h4>
+                                    <p className="text-[9px] text-[#E8B88A] uppercase tracking-widest font-black">Verified Client</p>
                                 </div>
                             </div>
                         </motion.div>

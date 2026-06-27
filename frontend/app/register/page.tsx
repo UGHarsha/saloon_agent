@@ -4,174 +4,599 @@ import { useState } from "react";
 import { supabase } from "../../utils/supabase";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { API_BASE, jsonAuthHeaders } from "../../utils/api";
+import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
 export default function Register() {
+
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [otp, setOtp] = useState("");
-  const [step, setStep] = useState<1 | 2>(1); // 1 = Registration, 2 = Verify OTP
+
+  const [step, setStep] = useState<1 | 2>(1);
+
   const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
   const [loading, setLoading] = useState(false);
+
   const router = useRouter();
 
+
+
   const handleRegister = async (e: React.FormEvent) => {
+
     e.preventDefault();
+
     setLoading(true);
     setMessage("");
+    setIsError(false);
 
-    const { data, error } = await supabase.auth.signUp({
+
+    const { error } = await supabase.auth.signUp({
+
       email,
       password,
+
     });
 
+
     if (error) {
+
       setMessage(error.message);
+      setIsError(true);
+
     } else {
-      setMessage("Verification code sent! Please check your email for the OTP.");
+
+      setMessage("Verification code sent!");
       setStep(2);
+
     }
+
+
     setLoading(false);
+
   };
+
+
+
+
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
+
+
     e.preventDefault();
+
     setLoading(true);
     setMessage("");
+    setIsError(false);
+
+
 
     const { data, error } = await supabase.auth.verifyOtp({
+
       email,
       token: otp,
-      type: 'signup',
+      type: "signup",
+
     });
 
+
+
     if (error) {
+
       setMessage(error.message);
-    } else {
-      setMessage("Registration successful! Redirecting to login...");
-      setTimeout(() => {
-        router.push("/login");
-      }, 1500);
+      setIsError(true);
+      setLoading(false);
+      return;
+
     }
+
+
+
+    if (data.user?.id && data.session?.access_token) {
+
+
+      await fetch(`${API_BASE}/api/register-user`, {
+
+        method: "POST",
+
+        headers: jsonAuthHeaders(
+          data.session.access_token
+        ),
+
+        body: JSON.stringify({
+
+          userId: data.user.id,
+
+          name: name || email.split("@")[0],
+
+          email
+
+        })
+
+      });
+
+
+    }
+
+
+
+    setMessage("Registration successful!");
+
+    setTimeout(() => {
+
+      router.push("/login");
+
+    }, 1500);
+
+
+
     setLoading(false);
+
+
   };
 
-  const handleGoogleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
 
-    if (error) {
-      setMessage(error.message);
-    }
-  };
+
+
 
   return (
-    <div className="min-h-screen bg-stone-950 flex flex-col justify-center items-center px-4">
-      <div className="absolute inset-0 bg-black/40 z-0"></div>
-      
-      <div className="relative z-10 w-full max-w-md bg-stone-900/80 p-8 rounded-xl border border-white/10 shadow-2xl backdrop-blur-xl">
-        <h2 className="text-2xl text-white font-serif mb-6 text-center tracking-widest uppercase">Register</h2>
-        
+
+
+    <div className="
+min-h-screen
+bg-[#090909]
+flex
+items-start
+justify-center
+px-4
+pt-24
+pb-10
+">
+
+
+      <div className="
+w-full
+max-w-md
+bg-white/[0.03]
+border
+border-white/10
+rounded-3xl
+p-10
+">
+
+
+        <h1 className="
+text-center
+text-3xl
+font-serif
+text-white
+mb-3
+">
+
+          Create{" "}
+
+          <span className="
+italic
+bg-gradient-to-r
+from-[#E8B88A]
+to-[#C77DFF]
+bg-clip-text
+text-transparent
+">
+
+            Account
+
+          </span>
+
+        </h1>
+
+
+
+        <p className="
+text-center
+text-stone-400
+text-sm
+mb-8
+">
+
+          Join Royal Glow experience
+
+        </p>
+
+
+
+
+
         {message && (
-          <div className={`mb-4 p-3 border rounded-md text-sm text-center ${message.includes('successful') || message.includes('sent') ? 'bg-stone-800 border-green-500/50 text-green-400' : 'bg-stone-800 border-red-500/50 text-red-400'}`}>
+
+          <motion.div
+
+            initial={{ opacity: 0 }}
+
+            animate={{ opacity: 1 }}
+
+            className={`
+mb-5
+p-3
+rounded-xl
+text-xs
+text-center
+${isError
+                ?
+                "bg-red-500/10 text-red-400"
+                :
+                "bg-green-500/10 text-green-400"
+              }
+
+`}
+
+          >
+
             {message}
-          </div>
+
+          </motion.div>
+
+
         )}
+
+
+
 
         {step === 1 ? (
-          <form onSubmit={handleRegister} className="space-y-4">
+
+
+          <form
+            onSubmit={handleRegister}
+            className="space-y-5"
+          >
+
+
             <div>
-              <label className="block text-stone-400 text-xs uppercase tracking-widest mb-2">Email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-stone-950 border border-white/10 rounded-md px-4 py-3 text-white focus:outline-none focus:border-white/30 transition-colors"
-                placeholder="Enter your email"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-stone-400 text-xs uppercase tracking-widest mb-2">Password</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-stone-950 border border-white/10 rounded-md px-4 py-3 text-white focus:outline-none focus:border-white/30 transition-colors"
-                placeholder="Create a password"
-              />
+
+              <label className="text-xs text-stone-400">
+                Name
+              </label>
+
+
+              <div className="relative mt-2">
+
+
+                <User className="
+absolute
+left-4
+top-1/2
+-translate-y-1/2
+text-stone-500
+w-5
+"/>
+
+
+
+                <input
+
+                  required
+
+                  value={name}
+
+                  onChange={(e) => setName(e.target.value)}
+
+                  placeholder="Full name"
+
+                  className="
+w-full
+h-14
+bg-black/30
+border
+border-white/10
+rounded-2xl
+pl-12
+text-white
+outline-none
+focus:border-[#E8B88A]
+"
+
+                />
+
+
+              </div>
+
             </div>
 
+
+
+
+            <div>
+
+              <label className="text-xs text-stone-400">
+                Email
+              </label>
+
+
+              <div className="relative mt-2">
+
+
+                <Mail className="
+absolute
+left-4
+top-1/2
+-translate-y-1/2
+text-stone-500
+w-5
+"/>
+
+
+
+                <input
+
+                  required
+
+                  type="email"
+
+                  value={email}
+
+                  onChange={(e) => setEmail(e.target.value)}
+
+                  placeholder="Email"
+
+                  className="
+w-full
+h-14
+bg-black/30
+border
+border-white/10
+rounded-2xl
+pl-12
+text-white
+outline-none
+focus:border-[#E8B88A]
+"
+
+                />
+
+
+              </div>
+
+            </div>
+
+
+
+
+
+            <div>
+
+              <label className="text-xs text-stone-400">
+                Password
+              </label>
+
+
+              <div className="relative mt-2">
+
+
+                <Lock className="
+absolute
+left-4
+top-1/2
+-translate-y-1/2
+text-stone-500
+w-5
+"/>
+
+
+
+                <input
+
+                  required
+
+                  type={showPassword ? "text" : "password"}
+
+                  value={password}
+
+                  onChange={(e) => setPassword(e.target.value)}
+
+                  placeholder="Password"
+
+                  className="
+w-full
+h-14
+bg-black/30
+border
+border-white/10
+rounded-2xl
+pl-12
+pr-12
+text-white
+outline-none
+focus:border-[#E8B88A]
+"
+
+                />
+
+
+
+                <button
+
+                  type="button"
+
+                  onClick={() => setShowPassword(!showPassword)}
+
+                  className="
+absolute
+right-4
+top-1/2
+-translate-y-1/2
+text-stone-500
+"
+
+                >
+
+                  {
+                    showPassword
+                      ?
+                      <EyeOff size={18} />
+                      :
+                      <Eye size={18} />
+                  }
+
+                </button>
+
+
+              </div>
+
+            </div>
+
+
+
+
+
             <button
-              type="submit"
+
               disabled={loading}
-              className="w-full bg-white text-black py-3 rounded-md text-sm uppercase tracking-widest font-semibold hover:bg-stone-200 transition-colors disabled:opacity-50"
+
+              className="
+w-full
+h-14
+rounded-2xl
+bg-[#E8B88A]
+text-black
+font-bold
+tracking-widest
+"
+
             >
-              {loading ? "Registering..." : "Sign Up"}
+
+              {
+                loading
+                  ?
+                  "CREATING..."
+                  :
+                  "CREATE ACCOUNT"
+              }
+
             </button>
+
+
+
           </form>
+
+
+
         ) : (
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <div>
-              <label className="block text-stone-400 text-xs uppercase tracking-widest mb-2">OTP Code</label>
-              <input
-                type="text"
-                required
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                className="w-full bg-stone-950 border border-white/10 rounded-md px-4 py-3 text-white text-center tracking-[0.2em] font-bold focus:outline-none focus:border-white/30 transition-colors"
-                placeholder="Enter 6-digit code"
-              />
-              <p className="text-xs text-stone-500 mt-2 text-center">We sent a verification code to {email}</p>
-            </div>
+
+
+          <form
+            onSubmit={handleVerifyOtp}
+            className="space-y-5"
+          >
+
+
+            <p className="
+text-center
+text-stone-400
+text-sm
+">
+
+              Code sent to
+
+              <br />
+
+              <span className="text-white">
+                {email}
+              </span>
+
+            </p>
+
+
+
+
+            <input
+
+              required
+
+              value={otp}
+
+              onChange={(e) => setOtp(e.target.value)}
+
+              maxLength={6}
+
+              placeholder="000000"
+
+              className="
+w-full
+h-14
+text-center
+tracking-[0.5em]
+bg-black/30
+border
+border-white/10
+rounded-2xl
+text-white
+"
+
+            />
+
+
 
             <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#C69C6D] text-white py-3 rounded-md text-sm uppercase tracking-widest font-semibold hover:bg-[#a67c52] transition-colors disabled:opacity-50"
+
+              className="
+w-full
+h-14
+rounded-2xl
+bg-[#E8B88A]
+text-black
+font-bold
+"
+
             >
-              {loading ? "Verifying..." : "Verify & Continue"}
+
+              VERIFY
+
             </button>
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="w-full bg-transparent text-stone-400 py-2 rounded-md text-xs uppercase tracking-widest hover:text-white transition-colors"
-            >
-              Change Email
-            </button>
+
+
+
           </form>
+
+
         )}
 
-        {step === 1 && (
-          <>
-            <div className="mt-6 flex items-center justify-center space-x-4">
-              <div className="h-px bg-white/10 flex-1"></div>
-              <span className="text-stone-500 text-xs uppercase tracking-widest">Or</span>
-              <div className="h-px bg-white/10 flex-1"></div>
-            </div>
 
-            <button
-              onClick={handleGoogleLogin}
-              className="mt-6 w-full flex items-center justify-center bg-stone-800 text-white py-3 rounded-md text-sm font-medium hover:bg-stone-700 transition-colors border border-white/5"
-            >
-              <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4 mr-3" />
-              Continue with Google
-            </button>
-          </>
-        )}
 
-        <p className="mt-8 text-center text-stone-400 text-sm">
-          Already have an account?{" "}
-          <Link href="/login" className="text-white hover:underline">
-            Log in
+
+
+        <p className="
+text-center
+text-sm
+text-stone-500
+mt-7
+">
+
+          Already have account?
+
+
+          <Link
+            href="/login"
+            className="text-[#E8B88A] ml-2"
+          >
+
+            Sign In
+
           </Link>
+
+
         </p>
+
+
+
       </div>
+
     </div>
+
+
   );
+
 }
