@@ -1,284 +1,233 @@
 "use client";
 
-import { useState, useEffect, FormEvent } from "react";
-import { supabase } from "../../../utils/supabase";
-import AdminNavbar from "../../components/AdminNavbar";
-import { Plus, Trash2, X, Image as ImageIcon, LayoutDashboard, Users, Calendar, Settings } from "lucide-react";
-import Link from "next/link";
+import { FormEvent, useEffect, useState } from "react";
 import Image from "next/image";
+import { API_BASE, jsonAuthHeaders, getAccessToken, parseApiError } from "../../../utils/api";
+import { Plus, Trash2, Image as ImageIcon } from "lucide-react";
 
 interface LookBookImage {
-    id: string;
-    src: string;
-    alt: string;
+  id: string;
+  src: string;
+  alt: string;
 }
 
 export default function AdminLookbook() {
-    const [images, setImages] = useState<LookBookImage[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+  const [images, setImages] = useState<LookBookImage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newImage, setNewImage] = useState({ src: "", alt: "" });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
-    // New image form state
-    const [showAddForm, setShowAddForm] = useState(false);
-    const [newImage, setNewImage] = useState({
-        src: "",
-        alt: ""
-    });
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [uploading, setUploading] = useState(false);
+  const fetchImages = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("http://localhost:5000/api/lookbook");
+      if (!response.ok) throw new Error("Failed to fetch images");
+      const data = await response.json();
+      setImages(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const fetchImages = async () => {
-        try {
-            setLoading(true);
-            const response = await fetch("http://localhost:5000/api/lookbook");
-            if (!response.ok) throw new Error("Failed to fetch images");
-            const data = await response.json();
-            setImages(data);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "An error occurred");
-        } finally {
-            setLoading(false);
-        }
-    };
+  useEffect(() => {
+    fetchImages();
+  }, []);
 
-    useEffect(() => {
-        fetchImages();
-    }, []);
+  const handleAddImage = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      setUploading(true);
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        alert("Session expired. Please log in again.");
+        return;
+      }
 
-    const handleAddImage = async (e: FormEvent) => {
-        e.preventDefault();
-        try {
-            setUploading(true);
-            const { data: { session } } = await supabase.auth.getSession();
-            let finalSrc = newImage.src;
+      let finalSrc = newImage.src;
 
-            // If a file is selected, upload it first
-            if (selectedFile) {
-                const formData = new FormData();
-                formData.append('image', selectedFile);
-                if (session?.access_token) {
-                    formData.append('accessToken', session.access_token);
-                }
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append("image", selectedFile);
+        formData.append("accessToken", accessToken);
 
-                const uploadResponse = await fetch("http://localhost:5000/api/upload", {
-                    method: "POST",
-                    body: formData
-                });
-                
-                if (!uploadResponse.ok) throw new Error("Failed to upload image");
-                const uploadData = await uploadResponse.json();
-                finalSrc = uploadData.url;
-            }
+        const uploadResponse = await fetch(`${API_BASE}/api/upload`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}` },
+          body: formData,
+        });
 
-            const response = await fetch("http://localhost:5000/api/lookbook", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ src: finalSrc, alt: newImage.alt, accessToken: session?.access_token })
-            });
+        if (!uploadResponse.ok) throw new Error(await parseApiError(uploadResponse));
+        const uploadData = await uploadResponse.json();
+        finalSrc = uploadData.url;
+      }
 
-            if (!response.ok) throw new Error("Failed to add image to lookbook");
-            
-            setShowAddForm(false);
-            setNewImage({ src: "", alt: "" });
-            setSelectedFile(null);
-            fetchImages();
-        } catch (err) {
-            alert(err instanceof Error ? err.message : "Failed to add image");
-        } finally {
-            setUploading(false);
-        }
-    };
+      const response = await fetch(`${API_BASE}/api/lookbook`, {
+        method: "POST",
+        headers: jsonAuthHeaders(accessToken),
+        body: JSON.stringify({
+          src: finalSrc,
+          alt: newImage.alt,
+          accessToken,
+        }),
+      });
 
-    const handleDeleteImage = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this image?")) return;
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const response = await fetch(`http://localhost:5000/api/lookbook/${id}`, {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ accessToken: session?.access_token })
-            });
-            if (!response.ok) throw new Error("Failed to delete image");
-            fetchImages();
-        } catch (err) {
-            alert(err instanceof Error ? err.message : "Failed to delete image");
-        }
-    };
+      if (!response.ok) throw new Error(await parseApiError(response));
 
-    const navItems = [
-        { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-        { name: "Bookings", href: "/admin/bookings", icon: Calendar },
-        { name: "Customers", href: "/admin/customers", icon: Users },
-        { name: "Services", href: "/admin/services", icon: Settings },
-        { name: "Lookbook", href: "/admin/lookbook", icon: ImageIcon },
-    ];
+      setShowAddForm(false);
+      setNewImage({ src: "", alt: "" });
+      setSelectedFile(null);
+      fetchImages();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to add image");
+    } finally {
+      setUploading(false);
+    }
+  };
 
-    return (
-        <>
-            <AdminNavbar />
-            <div className="flex h-screen bg-stone-100 font-sans text-stone-900 pt-16">
-                {/* Sidebar */}
-                <aside className="w-64 bg-white border-r border-stone-200 shadow-sm flex-col hidden md:flex">
-                    <div className="p-6 border-b border-stone-100">
-                        <h2 className="text-xl font-serif text-[#C69C6D] uppercase tracking-widest">Admin Panel</h2>
-                    </div>
-                    <nav className="flex-1 p-4 space-y-2">
-                        {navItems.map((item) => {
-                            const Icon = item.icon;
-                            const active = item.href === "/admin/lookbook";
-                            return (
-                                <Link
-                                    key={item.name}
-                                    href={item.href}
-                                    className={`flex items-center gap-3 px-4 py-3 rounded-md font-medium text-sm transition ${active
-                                            ? "bg-stone-50 text-[#C69C6D] font-semibold"
-                                            : "text-stone-500 hover:bg-stone-50 hover:text-stone-700"
-                                        }`}
-                                >
-                                    <Icon className="w-4 h-4" />
-                                    {item.name}
-                                </Link>
-                            );
-                        })}
-                    </nav>
-                </aside>
+  const handleDeleteImage = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this image?")) return;
 
-                {/* Main Content */}
-                <main className="flex-1 overflow-y-auto p-4 md:p-8">
-                    <div className="max-w-6xl mx-auto">
-                        <div className="flex justify-between items-center mb-8">
-                            <div>
-                                <h1 className="text-3xl font-serif text-[#3E2723] mb-1">Lookbook Management</h1>
-                                <p className="text-stone-500 text-sm">Manage gallery images for the home page</p>
-                            </div>
-                            <button
-                                onClick={() => setShowAddForm(true)}
-                                className="bg-[#3E2723] text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-[#5D3A32] transition shadow-md"
-                            >
-                                <Plus className="w-4 h-4" />
-                                Add Image
-                            </button>
-                        </div>
+    try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        alert("Session expired. Please log in again.");
+        return;
+      }
 
-                        {/* Error Message */}
-                        {error && (
-                            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6">
-                                {error}
-                            </div>
-                        )}
+      const response = await fetch(`${API_BASE}/api/lookbook/${id}`, {
+        method: "DELETE",
+        headers: jsonAuthHeaders(accessToken),
+        body: JSON.stringify({ accessToken }),
+      });
 
-                        {/* Add Image Modal */}
-                        {showAddForm && (
-                            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-                                    <div className="p-6 border-b border-stone-100 flex justify-between items-center bg-stone-50">
-                                        <h3 className="text-xl font-serif text-[#3E2723]">Add Gallery Image</h3>
-                                        <button onClick={() => setShowAddForm(false)} className="text-stone-400 hover:text-stone-600">
-                                            <X className="w-6 h-6" />
-                                        </button>
-                                    </div>
-                                    <form onSubmit={handleAddImage} className="p-6 space-y-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-1">Select Image File</label>
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                className="w-full border border-stone-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#C69C6D] outline-none mb-3"
-                                                onChange={(e) => {
-                                                    const file = e.target.files?.[0];
-                                                    if (file) {
-                                                        setSelectedFile(file);
-                                                        setNewImage({ ...newImage, src: file.name }); // Temporary visual indication
-                                                    }
-                                                }}
-                                            />
-                                            <div className="flex items-center my-2">
-                                                <div className="flex-1 border-t border-stone-200"></div>
-                                                <span className="px-3 text-xs text-stone-400 font-bold uppercase">OR</span>
-                                                <div className="flex-1 border-t border-stone-200"></div>
-                                            </div>
-                                            <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-1">Enter Image URL Directly</label>
-                                            <input
-                                                type="text"
-                                                required={!selectedFile}
-                                                className="w-full border border-stone-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#C69C6D] outline-none"
-                                                value={newImage.src}
-                                                onChange={(e) => setNewImage({ ...newImage, src: e.target.value })}
-                                                placeholder="e.g. /customers/new-look.jpg or https://..."
-                                                disabled={!!selectedFile}
-                                            />
-                                            <p className="mt-1 text-[10px] text-stone-400">Provide a URL if not uploading a file</p>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-1">Alt Text (Description)</label>
-                                            <input
-                                                type="text"
-                                                required
-                                                className="w-full border border-stone-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#C69C6D] outline-none"
-                                                value={newImage.alt}
-                                                onChange={(e) => setNewImage({ ...newImage, alt: e.target.value })}
-                                                placeholder="e.g. Stylish men's haircut"
-                                            />
-                                        </div>
-                                        <button
-                                            type="submit"
-                                            disabled={uploading}
-                                            className="w-full bg-[#3E2723] text-white py-4 rounded-lg font-bold hover:bg-[#5D3A32] transition mt-4 disabled:opacity-50"
-                                        >
-                                            {uploading ? "Uploading..." : "Add to Lookbook"}
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        )}
+      if (!response.ok) throw new Error(await parseApiError(response));
+      fetchImages();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete image");
+    }
+  };
 
-                        {/* Images Grid */}
-                        {loading ? (
-                            <div className="text-center py-20 text-stone-400">Loading lookbook...</div>
-                        ) : images.length === 0 ? (
-                            <div className="bg-white rounded-xl p-12 text-center border border-stone-100 shadow-sm">
-                                <ImageIcon className="w-16 h-16 text-stone-200 mx-auto mb-4" />
-                                <h3 className="text-lg font-serif text-stone-600 mb-2">No images in lookbook</h3>
-                                <p className="text-stone-400 text-sm mb-6">Add your first masterpiece to show off to clients.</p>
-                                <button
-                                    onClick={() => setShowAddForm(true)}
-                                    className="text-[#C69C6D] font-bold text-xs uppercase tracking-widest hover:underline"
-                                >
-                                    Add Image Now
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                {images.map((img) => (
-                                    <div key={img.id} className="group bg-white rounded-xl overflow-hidden shadow-sm border border-stone-100 hover:shadow-md transition-all relative">
-                                        <div className="aspect-[4/5] relative">
-                                            <Image
-                                                src={img.src}
-                                                alt={img.alt}
-                                                fill
-                                                className="object-cover"
-                                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                                            />
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                                                <button
-                                                    onClick={() => handleDeleteImage(img.id)}
-                                                    className="bg-red-600 text-white p-3 rounded-full hover:bg-red-700 transition transform hover:scale-110"
-                                                    title="Delete Image"
-                                                >
-                                                    <Trash2 className="w-5 h-5" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div className="p-4 bg-white">
-                                            <p className="text-xs text-stone-500 font-medium truncate">{img.alt}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </main>
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-400">Admin</p>
+          <h1 className="mt-2 text-2xl font-semibold text-stone-900 flex items-center gap-2">
+            <ImageIcon className="h-5 w-5 text-stone-700" />
+            Lookbook
+          </h1>
+          <p className="mt-1 text-sm text-stone-500">Upload and manage salon photos.</p>
+        </div>
+
+        <button
+          onClick={() => setShowAddForm((value) => !value)}
+          className="inline-flex items-center gap-2 rounded-lg bg-stone-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-stone-800"
+        >
+          <Plus className="h-4 w-4" />
+          {showAddForm ? "Close form" : "Add photo"}
+        </button>
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {showAddForm && (
+        <form onSubmit={handleAddImage} className="rounded-xl border border-stone-200 bg-white p-4 md:p-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.2em] text-stone-400">Upload file</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setSelectedFile(file);
+                    setNewImage({ ...newImage, src: file.name });
+                  }
+                }}
+                className="w-full rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none transition focus:border-stone-400"
+              />
             </div>
-        </>
-    );
+
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.2em] text-stone-400">Image URL</label>
+              <input
+                type="text"
+                required={!selectedFile}
+                disabled={!!selectedFile}
+                value={newImage.src}
+                onChange={(e) => setNewImage({ ...newImage, src: e.target.value })}
+                placeholder="https://..."
+                className="w-full rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none transition focus:border-stone-400 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.2em] text-stone-400">Caption</label>
+              <input
+                type="text"
+                required
+                value={newImage.alt}
+                onChange={(e) => setNewImage({ ...newImage, alt: e.target.value })}
+                placeholder="Short description for the image"
+                className="w-full rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none transition focus:border-stone-400"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 flex justify-end">
+            <button
+              type="submit"
+              disabled={uploading}
+              className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {uploading ? "Uploading..." : "Save photo"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+        <div className="border-b border-stone-200 px-4 py-3">
+          <h2 className="text-sm font-semibold text-stone-800">Photo grid</h2>
+        </div>
+
+        {loading ? (
+          <div className="py-16 text-center text-sm text-stone-500">Loading gallery...</div>
+        ) : images.length === 0 ? (
+          <div className="py-16 text-center text-sm text-stone-500">No photos added yet.</div>
+        ) : (
+          <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
+            {images.map((img) => (
+              <div key={img.id} className="overflow-hidden rounded-xl border border-stone-200 bg-stone-50">
+                <div className="relative aspect-4/5">
+                  <Image src={img.src} alt={img.alt} fill className="object-cover" sizes="(max-width: 768px) 100vw, 33vw" />
+                </div>
+                <div className="flex items-start justify-between gap-3 p-3">
+                  <p className="min-w-0 flex-1 text-sm text-stone-700">{img.alt}</p>
+                  <button
+                    onClick={() => handleDeleteImage(img.id)}
+                    className="rounded-lg border border-red-200 px-2.5 py-2 text-xs font-medium text-red-700 transition hover:bg-red-50"
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      <Trash2 className="h-3.5 w-3.5" /> Delete
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

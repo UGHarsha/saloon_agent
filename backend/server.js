@@ -9,6 +9,9 @@ import { createClient } from '@supabase/supabase-js';
 import multer from 'multer';
 import fetch from 'node-fetch';
 import FormData from 'form-data';
+import { sendBookingConfirmationEmail } from './email.js';
+import { requireAdmin, requireAuth } from './auth.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,8 +35,41 @@ console.log('Supabase config check:', { hasSupabaseConfig, rawSupabaseUrl: rawSu
 const inMemoryBookings = [];
 
 const app = express();
-app.use(cors());
+
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(null, false);
+  },
+  credentials: true,
+}));
 app.use(express.json());
+
+async function adminGuard(req, res) {
+  const auth = await requireAdmin(req, authContext);
+  if (auth.error) {
+    res.status(auth.status).json({ error: auth.error });
+    return null;
+  }
+  return auth;
+}
+
+async function authGuard(req, res) {
+  const auth = await requireAuth(req, authContext);
+  if (auth.error) {
+    res.status(auth.status).json({ error: auth.error });
+    return null;
+  }
+  return auth;
+}
 
 function missingUserIdColumn(message) {
   const msg = String(message || '').toLowerCase();
@@ -59,6 +95,24 @@ function buildSupabaseClient(accessToken) {
 }
 
 const supabase = buildSupabaseClient();
+
+// Admin client using service-role key (for privileged operations like deleteUser)
+const serviceRoleKey = (process.env.SUPABASE_SERVICE_KEY || '').trim();
+const adminSupabase = (hasSupabaseConfig && serviceRoleKey)
+  ? createClient(rawSupabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
+  : null;
+
+const authContext = {
+  adminSupabase,
+  supabaseUrl: rawSupabaseUrl,
+  anonKey: rawSupabaseAnonKey,
+};
+
+function getAdminDbClient(auth) {
+  return adminSupabase || getRequestSupabase(auth.accessToken);
+}
 
 function getRequestSupabase(accessToken) {
   if (!hasSupabaseConfig) {
@@ -617,6 +671,18 @@ app.post('/api/chat', async (req, res) => {
     let bookingError = null;
 
     if (shouldBook && appointmentDetails.service) {
+      if (!safeAccessToken || !safeUserId) {
+        bookingError = 'Please log in to book an appointment.';
+      } else if (!adminSupabase) {
+        bookingError = 'Authentication service not configured.';
+      } else {
+        const { data: { user: bookingUser }, error: bookingAuthErr } = await adminSupabase.auth.getUser(safeAccessToken);
+        if (bookingAuthErr || !bookingUser || bookingUser.id !== safeUserId) {
+          bookingError = 'Please log in to book an appointment.';
+        }
+      }
+
+      if (!bookingError) {
       try {
         let dateTimeString = appointmentDetails.appointmentDate || new Date().toISOString().split('T')[0];
         if (appointmentDetails.appointmentTime) {
@@ -696,11 +762,21 @@ app.post('/api/chat', async (req, res) => {
           } else {
             console.log("Appointment saved successfully:", data);
             bookingSaved = true;
+
+            if (safeUserEmail) {
+              sendBookingConfirmationEmail({
+                to: safeUserEmail,
+                name: bookingData.customer_name,
+                service: bookingData.service,
+                appointmentDate: bookingData.appointment_date,
+              }).catch((err) => console.error('Email send error:', err));
+            }
           }
         }
       } catch (dbError) {
         console.error("Database error:", dbError);
         bookingError = dbError instanceof Error ? dbError.message : 'database error';
+      }
       }
     } else {
       console.log("Booking conditions not met:", { shouldBook, service: appointmentDetails.service, message: safeMessage });
@@ -836,11 +912,22 @@ app.get('/api/booked-slots', async (req, res) => {
 
 app.post('/api/book-manual', async (req, res) => {
   try {
+    const auth = await authGuard(req, res);
+    if (!auth) return;
+
     const { name, service, date, userId, userEmail, accessToken } = req.body;
 
     if (!name || !service || !date) {
       return res.status(400).json({ error: "Missing required fields: name, service, or date." });
     }
+
+    if (userId && userId !== auth.user.id) {
+      return res.status(403).json({ error: 'User ID does not match authenticated session.' });
+    }
+
+    const resolvedUserId = auth.user.id;
+    const resolvedUserEmail = userEmail || auth.user.email;
+    const resolvedAccessToken = accessToken || auth.accessToken;
 
     const start = new Date(date);
     const durationMatch = service.match(/(\d+)\s*min/);
@@ -851,7 +938,7 @@ app.post('/api/book-manual', async (req, res) => {
     const windowStart = new Date(start.getTime() - 12 * 60 * 60 * 1000).toISOString();
     const windowEnd = new Date(start.getTime() + 12 * 60 * 60 * 1000).toISOString();
 
-    const existingBookings = await listBookingsInRange(windowStart, windowEnd, accessToken);
+    const existingBookings = await listBookingsInRange(windowStart, windowEnd, resolvedAccessToken);
 
     let isOverlapping = false;
     for (const booking of (existingBookings || [])) {
@@ -876,17 +963,26 @@ app.post('/api/book-manual', async (req, res) => {
       appointment_date: date,
     };
 
-    if (userId) {
-      bookingData.user_id = userId;
+    if (resolvedUserId) {
+      bookingData.user_id = resolvedUserId;
     }
-    if (userEmail) {
-      bookingData.user_email = userEmail;
+    if (resolvedUserEmail) {
+      bookingData.user_email = resolvedUserEmail;
     }
 
-    const { data, error } = await saveBooking(bookingData, accessToken);
+    const { data, error } = await saveBooking(bookingData, resolvedAccessToken);
 
     if (error) {
       return res.status(500).json({ error: error.message || 'database error' });
+    }
+
+    if (resolvedUserEmail) {
+      sendBookingConfirmationEmail({
+        to: resolvedUserEmail,
+        name,
+        service,
+        appointmentDate: date,
+      }).catch((err) => console.error('Email send error:', err));
     }
 
     res.json({ success: true, data });
@@ -898,12 +994,15 @@ app.post('/api/book-manual', async (req, res) => {
 
 app.post('/api/delete-bookings', async (req, res) => {
   try {
-    const { ids, accessToken } = req.body;
+    const auth = await adminGuard(req, res);
+    if (!auth) return;
+
+    const { ids } = req.body;
     if (!ids || !Array.isArray(ids)) {
       return res.status(400).json({ error: "Booking IDs are required." });
     }
 
-    const client = getRequestSupabase(accessToken);
+    const client = getAdminDbClient(auth);
     if (!client && hasSupabaseConfig) throw new Error("Supabase client not configured");
 
     const normalizedIds = ids.map(id => !isNaN(Number(id)) && typeof id !== 'boolean' ? Number(id) : id);
@@ -961,8 +1060,11 @@ app.get('/api/services', async (req, res) => {
 
 app.post('/api/services', async (req, res) => {
   try {
-    const { name, category, price, duration, description, accessToken } = req.body;
-    const client = getRequestSupabase(accessToken);
+    const auth = await adminGuard(req, res);
+    if (!auth) return;
+
+    const { name, category, price, duration, description } = req.body;
+    const client = getAdminDbClient(auth);
 
     if (!client) {
       throw new Error("Supabase client not initialized.");
@@ -990,9 +1092,12 @@ app.post('/api/services', async (req, res) => {
 
 app.put('/api/services/:id', async (req, res) => {
   try {
+    const auth = await adminGuard(req, res);
+    if (!auth) return;
+
     const id = req.params.id;
-    const { name, category, price, duration, description, accessToken } = req.body;
-    const client = getRequestSupabase(accessToken);
+    const { name, category, price, duration, description } = req.body;
+    const client = getAdminDbClient(auth);
 
     if (!client) {
       throw new Error("Supabase client not initialized.");
@@ -1021,9 +1126,11 @@ app.put('/api/services/:id', async (req, res) => {
 
 app.delete('/api/services/:id', async (req, res) => {
   try {
+    const auth = await adminGuard(req, res);
+    if (!auth) return;
+
     const id = req.params.id;
-    const { accessToken } = req.body;
-    const client = getRequestSupabase(accessToken);
+    const client = getAdminDbClient(auth);
 
     if (!client) {
       throw new Error("Supabase client not initialized.");
@@ -1047,14 +1154,18 @@ app.delete('/api/services/:id', async (req, res) => {
 // --- UPLOAD ENDPOINT ---
 app.post('/api/upload', upload.single('image'), async (req, res) => {
   try {
+    const auth = await adminGuard(req, res);
+    if (!auth) return;
+
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const { accessToken } = req.body;
-    // Basic verification without strictly failing to allow local testing
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      return res.status(400).json({ error: 'Only JPEG, PNG, WebP, and GIF images are allowed.' });
+    }
 
-    // We will save to frontend/public/uploads
     const uploadDir = path.join(__dirname, '../frontend/public/customers');
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
@@ -1103,8 +1214,11 @@ app.get('/api/lookbook', async (req, res) => {
 
 app.post('/api/lookbook', async (req, res) => {
   try {
-    const { src, alt, accessToken } = req.body;
-    const client = getRequestSupabase(accessToken);
+    const auth = await adminGuard(req, res);
+    if (!auth) return;
+
+    const { src, alt } = req.body;
+    const client = getAdminDbClient(auth);
 
     if (!client) {
       throw new Error("Supabase client not initialized.");
@@ -1127,9 +1241,11 @@ app.post('/api/lookbook', async (req, res) => {
 
 app.delete('/api/lookbook/:id', async (req, res) => {
   try {
+    const auth = await adminGuard(req, res);
+    if (!auth) return;
+
     const id = req.params.id;
-    const { accessToken } = req.body;
-    const client = getRequestSupabase(accessToken);
+    const client = getAdminDbClient(auth);
 
     if (!client) {
       throw new Error("Supabase client not initialized.");
@@ -1147,6 +1263,211 @@ app.delete('/api/lookbook/:id', async (req, res) => {
   } catch (error) {
     console.error("Delete Lookbook Image Error:", error);
     res.status(500).json({ error: error.message || "Failed to delete image." });
+  }
+});
+
+
+// ============================================================
+// USER MANAGEMENT ENDPOINTS
+// ============================================================
+
+// POST /api/register-user
+// Called after successful Supabase Auth signup to store profile (no password storage)
+app.post('/api/register-user', async (req, res) => {
+  try {
+    const auth = await authGuard(req, res);
+    if (!auth) return;
+
+    const { userId, name, email } = req.body;
+    if (!userId || !email) {
+      return res.status(400).json({ error: 'userId and email are required.' });
+    }
+
+    if (userId !== auth.user.id) {
+      return res.status(403).json({ error: 'User ID does not match authenticated session.' });
+    }
+
+    if (email.toLowerCase() !== auth.user.email?.toLowerCase()) {
+      return res.status(403).json({ error: 'Email does not match authenticated session.' });
+    }
+
+    if (!adminSupabase) {
+      return res.status(500).json({ error: 'Service role key not configured on server.' });
+    }
+
+    const profileName = name || email.split('@')[0];
+    const { data: existingProfile } = await adminSupabase
+      .from('user_profiles')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    const { error } = existingProfile
+      ? await adminSupabase
+        .from('user_profiles')
+        .update({ name: profileName, email })
+        .eq('id', userId)
+      : await adminSupabase
+        .from('user_profiles')
+        .insert([{ id: userId, name: profileName, email }]);
+
+    if (error) {
+      console.error('Insert user_profiles error:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Register-user error:', err);
+    res.status(500).json({ error: 'Failed to save user profile.' });
+  }
+});
+
+// GET /api/users
+// Returns masked list of registered users for admin panel
+app.get('/api/users', async (req, res) => {
+  try {
+    const auth = await adminGuard(req, res);
+    if (!auth) return;
+
+    if (!adminSupabase) {
+      return res.status(500).json({ error: 'Service role key not configured.' });
+    }
+
+    // Fetch user profiles
+    const { data: profiles, error: profErr } = await adminSupabase
+      .from('user_profiles')
+      .select('id, name, email, created_at')
+      .order('created_at', { ascending: false });
+
+    if (profErr) {
+      return res.status(500).json({ error: profErr.message });
+    }
+
+    // Fetch booking counts per user_id
+    const { data: bookings } = await adminSupabase
+      .from('bookings')
+      .select('user_id');
+
+    const bookingCounts = {};
+    (bookings || []).forEach(b => {
+      if (b.user_id) bookingCounts[b.user_id] = (bookingCounts[b.user_id] || 0) + 1;
+    });
+
+    const maskEmail = (email) => {
+      const [local, domain] = email.split('@');
+      if (!domain) return email;
+      const visible = local.charAt(0);
+      return `${visible}${'*'.repeat(Math.min(local.length - 1, 5))}@${domain}`;
+    };
+
+    const users = (profiles || []).map(p => ({
+      id: p.id,
+      name: p.name,
+      email: maskEmail(p.email),
+      created_at: p.created_at,
+      bookingCount: bookingCounts[p.id] || 0,
+    }));
+
+    res.json(users);
+  } catch (err) {
+    console.error('GET /api/users error:', err);
+    res.status(500).json({ error: 'Failed to fetch users.' });
+  }
+});
+
+// GET /api/admin/users
+// Returns UNMASKED list of all registered users for admin panel
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    const auth = await adminGuard(req, res);
+    if (!auth) return;
+
+    if (!adminSupabase) {
+      return res.status(500).json({ error: 'Service role key not configured.' });
+    }
+
+    // Fetch user profiles with full email
+    const { data: profiles, error: profErr } = await adminSupabase
+      .from('user_profiles')
+      .select('id, name, email, created_at')
+      .order('created_at', { ascending: false });
+
+    if (profErr) {
+      console.error('Admin users fetch error:', profErr);
+      return res.status(500).json({ error: profErr.message });
+    }
+
+    // Fetch booking counts and last booking per user_id
+    const { data: bookings } = await adminSupabase
+      .from('bookings')
+      .select('user_id, service, appointment_date');
+
+    const bookingCounts = {};
+    const lastBookings = {};
+    const totalSpent = {};
+
+    (bookings || []).forEach(b => {
+      if (b.user_id) {
+        bookingCounts[b.user_id] = (bookingCounts[b.user_id] || 0) + 1;
+        if (!lastBookings[b.user_id] || new Date(b.appointment_date) > new Date(lastBookings[b.user_id])) {
+          lastBookings[b.user_id] = b.appointment_date;
+        }
+        const priceMatch = b.service?.match(/Rs\.\s*(\d+)/);
+        if (priceMatch) {
+          totalSpent[b.user_id] = (totalSpent[b.user_id] || 0) + parseInt(priceMatch[1]);
+        }
+      }
+    });
+
+    // Also fetch auth provider info if available
+    const users = (profiles || []).map(p => ({
+      id: p.id,
+      name: p.name,
+      email: p.email, // unmasked for admin
+      created_at: p.created_at,
+      bookingCount: bookingCounts[p.id] || 0,
+      lastBooking: lastBookings[p.id] || null,
+      totalSpent: totalSpent[p.id] || 0,
+    }));
+
+    res.json(users);
+  } catch (err) {
+    console.error('GET /api/admin/users error:', err);
+    res.status(500).json({ error: 'Failed to fetch admin users.' });
+  }
+});
+
+// DELETE /api/users/:id
+// Admin endpoint: deletes auth user, all their bookings, and their profile
+app.delete('/api/users/:id', async (req, res) => {
+  try {
+    const auth = await adminGuard(req, res);
+    if (!auth) return;
+
+    const { id } = req.params;
+
+    if (!adminSupabase) {
+      return res.status(500).json({ error: 'Service role key not configured.' });
+    }
+
+    // 1. Delete all bookings for this user
+    await adminSupabase.from('bookings').delete().eq('user_id', id);
+
+    // 2. Delete from user_profiles table
+    await adminSupabase.from('user_profiles').delete().eq('id', id);
+
+    // 3. Delete from Supabase Auth
+    const { error: delErr } = await adminSupabase.auth.admin.deleteUser(id);
+    if (delErr) {
+      console.error('Auth delete error:', delErr);
+      return res.status(500).json({ error: delErr.message });
+    }
+
+    res.json({ success: true, message: 'User account and all associated data deleted.' });
+  } catch (err) {
+    console.error('DELETE /api/users/:id error:', err);
+    res.status(500).json({ error: 'Failed to delete user.' });
   }
 });
 

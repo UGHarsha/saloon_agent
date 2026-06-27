@@ -8,7 +8,7 @@ import { supabase } from "../../utils/supabase";
 import { User } from "@supabase/supabase-js";
 import { Menu, X, Scissors, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-
+import { LogOut } from 'lucide-react';
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -70,6 +70,7 @@ export default function Navbar() {
   };
 
   const navLinks = [
+    { name: "Home", href: "/" },
     { name: "About", href: "/#about" },
     { name: "Services", href: "/services" },
     { name: "Virtual Try-On", href: "/recolor" },
@@ -78,6 +79,9 @@ export default function Navbar() {
 
   if (user) {
     navLinks.push({ name: "Appointments", href: "/bookings" });
+    if (isAdmin) {
+      navLinks.push({ name: "Members", href: "/users" });
+    }
   }
 
   if (pathname?.startsWith("/admin")) {
@@ -88,90 +92,87 @@ export default function Navbar() {
 
   return (
     <nav
-      className={`fixed top-0 w-full z-50 transition-all duration-300 ${isSolid
-        ? "bg-white/80 backdrop-blur-md border-b border-stone-200 py-3 shadow-sm"
-        : "bg-transparent py-5"
+      className={`fixed top-0 w-full z-50 transition-all duration-500 ${isSolid
+        ? "bg-[#0A0A0A]/85 backdrop-blur-xl border-b border-white/5 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.8)]"
+        : "bg-transparent py-6"
         } ${showNavbar ? "translate-y-0" : "-translate-y-full"}`}
     >
-      <div className="w-full max-w-[95rem] mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-[95rem] mx-auto px-6 sm:px-8 lg:px-12">
         <div className="flex justify-between items-center">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2 lg:space-x-4 group z-50 shrink-0">
-            {isSolid ? (
-              <Image
-                src="/black.png"
-                alt="Royal Glow Logo"
-                width={55}
-                height={55}
-                style={{ width: "auto" }}
-                className="object-contain"
-              />
-            ) : (
-              <Image
-                src="/wite.png"
-                alt="Royal Glow Logo"
-                width={55}
-                height={55}
-                style={{ width: "auto" }}
-                className="object-contain"
-              />
-            )}
-            <span className={`font-serif tracking-widest text-base transition-colors hidden sm:block whitespace-nowrap ${isSolid ? "text-stone-900" : "text-white"}`}>
+          <Link href="/" className="flex items-center space-x-3 group z-50 shrink-0">
+            <Image
+              src="/wite.png"
+              alt="Royal Glow Logo"
+              width={48}
+              height={48}
+              style={{ width: "auto" }}
+              className="object-contain filter drop-shadow-[0_0_8px_rgba(232,184,138,0.3)] group-hover:scale-105 transition-transform duration-500"
+            />
+
+            <span className="font-serif tracking-[0.3em] text-sm text-white group-hover:text-[#E8B88A] transition-colors hidden lg:block whitespace-nowrap">
               ROYAL GLOW
             </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-3 lg:space-x-5 xl:space-x-6">
+          <div className="hidden md:flex items-center gap-3 lg:gap-4 xl:gap-5 shrink min-w-0">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
-                className={`text-sm font-medium uppercase tracking-widest transition-colors relative group whitespace-nowrap ${isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
-                  }`}
+                className="text-[10px] lg:text-xs font-semibold uppercase tracking-[0.15em] lg:tracking-[0.2em] xl:tracking-[0.25em] transition-colors relative group whitespace-nowrap text-white/70 hover:text-white shrink-0"
               >
-                {link.name}
-                <span className={`absolute -bottom-1 left-0 w-0 h-px transition-all duration-300 group-hover:w-full ${isSolid ? "bg-stone-900" : "bg-white"
-                  }`}></span>
+                {link.name === "Virtual Try-On" ? (
+                  <>
+                    <span className="xl:hidden">Try-On</span>
+                    <span className="hidden xl:inline">Virtual Try-On</span>
+                  </>
+                ) : link.name === "Contact Us" ? (
+                  <>
+                    <span className="xl:hidden">Contact</span>
+                    <span className="hidden xl:inline">Contact Us</span>
+                  </>
+                ) : (
+                  link.name
+                )}
+                <span className="absolute -bottom-1.5 left-0 w-0 h-[2px] transition-all duration-300 group-hover:w-full bg-gradient-to-r from-[#E8B88A] to-[#C77DFF]"></span>
               </Link>
             ))}
 
-            <div className="h-4 w-px bg-stone-300/50 mx-3 lg:mx-4"></div>
+            <div className="h-5 w-px bg-white/10 mx-0.5 shrink-0"></div>
 
             {user ? (
               <>
                 {isAdmin && (
                   <Link
                     href="/admin"
-                    className={`text-sm font-medium uppercase tracking-widest transition-colors flex items-center gap-2 whitespace-nowrap shrink-0 ${isSolid ? "text-[#C69C6D] hover:text-[#B8885F]" : "text-[#C69C6D] hover:text-[#B8885F]"
-                      }`}
+                    title="Admin Panel"
+                    aria-label="Admin Panel"
+                    className="transition-colors flex items-center shrink-0 text-[#E8B88A] hover:text-[#D4A574] p-1.5 rounded-md hover:bg-white/5"
                   >
                     <Shield className="w-4 h-4" />
-                    Admin Panel
+                    <span className="sr-only">Admin Panel</span>
                   </Link>
                 )}
                 <button
                   onClick={handleLogout}
-                  className={`text-sm font-medium uppercase tracking-widest transition-colors whitespace-nowrap shrink-0 ${isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
-                    }`}
+                  aria-label="Logout"
+                  className="transition-colors shrink-0 text-white/70 hover:text-white p-1.5 rounded-md hover:bg-white/5"
                 >
-                  Logout
+                  <LogOut className="w-4 h-4" />
                 </button>
                 <Link
                   href="/?book=true"
-                  className={`text-xs font-semibold uppercase tracking-widest px-4 lg:px-6 py-3 transition-all whitespace-nowrap shrink-0 ${isSolid
-                    ? "bg-stone-900 text-white hover:bg-stone-800"
-                    : "bg-white text-stone-900 hover:bg-white/90"
-                    }`}
+                  className="text-[10px] font-black uppercase tracking-[0.2em] px-4 lg:px-5 py-2.5 lg:py-3 transition-all duration-500 whitespace-nowrap shrink-0 bg-gradient-to-r from-[#E8B88A] to-[#D4A574] text-black rounded-full hover:shadow-[0_0_30px_rgba(232,184,138,0.4)] hover:scale-105 active:scale-95"
                 >
-                  Book Appointment
+                  Booking Appointment
                 </Link>
               </>
             ) : (
               <Link
                 href="/login"
-                className={`text-sm font-medium uppercase tracking-widest transition-colors ${isSolid ? "text-stone-600 hover:text-stone-900" : "text-white/80 hover:text-white"
-                  }`}
+                className="text-xs font-semibold uppercase tracking-[0.2em] transition-colors text-white/70 hover:text-white"
               >
                 Sign In
               </Link>
@@ -182,7 +183,7 @@ export default function Navbar() {
           <div className="md:hidden z-50 flex items-center">
             <button
               onClick={toggleMenu}
-              className={`p-2 transition-colors ${isSolid || isOpen ? "text-stone-900" : "text-white"}`}
+              className="p-2 transition-colors text-white"
             >
               {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -197,14 +198,14 @@ export default function Navbar() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="md:hidden fixed inset-0 z-40 bg-white pt-24 px-6 flex flex-col space-y-6 max-h-screen overflow-y-auto"
+            className="md:hidden fixed inset-0 z-40 bg-[#0A0A0A] pt-24 px-8 flex flex-col space-y-6 max-h-screen overflow-y-auto"
           >
             {navLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
                 onClick={toggleMenu}
-                className="text-2xl font-serif text-stone-800 border-b border-stone-100 pb-4"
+                className="text-xl font-serif text-white/90 border-b border-white/5 pb-4 tracking-wider"
               >
                 {link.name}
               </Link>
@@ -217,7 +218,7 @@ export default function Navbar() {
                     <Link
                       href="/admin"
                       onClick={toggleMenu}
-                      className="text-lg font-medium text-[#C69C6D] flex items-center gap-2 border-b border-stone-100 pb-4"
+                      className="text-sm font-medium text-[#E8B88A] flex items-center gap-2 border-b border-white/5 pb-4"
                     >
                       <Shield className="w-5 h-5" />
                       Admin Panel
@@ -228,14 +229,14 @@ export default function Navbar() {
                       handleLogout();
                       toggleMenu();
                     }}
-                    className="text-lg font-medium text-stone-600 text-left"
+                    className="text-sm font-medium text-white/70 text-left"
                   >
                     Logout
                   </button>
                   <Link
                     href="/?book=true"
                     onClick={toggleMenu}
-                    className="bg-stone-900 text-white text-center py-4 text-sm font-semibold uppercase tracking-widest mt-4"
+                    className="bg-gradient-to-r from-[#E8B88A] to-[#D4A574] text-black text-center py-4 text-xs font-bold uppercase tracking-widest mt-4 rounded-full"
                   >
                     Book Appointment
                   </Link>
@@ -244,7 +245,7 @@ export default function Navbar() {
                 <Link
                   href="/login"
                   onClick={toggleMenu}
-                  className="text-lg font-medium text-stone-600"
+                  className="text-sm font-medium text-white/70"
                 >
                   Sign In
                 </Link>
@@ -253,6 +254,6 @@ export default function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
-    </nav>
+    </nav >
   );
 }

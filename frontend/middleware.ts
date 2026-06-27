@@ -59,8 +59,9 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protect /admin routes
-  if (request.nextUrl.pathname.startsWith('/admin')) {
+  // Protect /admin and /users routes (admin-only)
+  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin') || request.nextUrl.pathname.startsWith('/users');
+  if (isAdminRoute) {
     if (!user) {
       // If no user is logged in, redirect to login page with a "next" parameter
       const url = request.nextUrl.clone()
